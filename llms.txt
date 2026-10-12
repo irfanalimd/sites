@@ -12,7 +12,9 @@
 4. Tell the user the live URL: `https://irfanalimd.github.io/sites/p/<slug>.html`
    (GitHub Pages takes ~30-60 seconds to update after the commit.)
 
-The homepage (`https://irfanalimd.github.io/sites/`) lists everything in `p/` automatically.
+The homepage (`https://irfanalimd.github.io/sites/`) lists every `.html` under `p/` automatically, including
+subfolders (a folder's `index.html` is linked as the folder, e.g. `p/media/espresso-bench/`).
+Prefer the flat `p/<slug>.html` form for single-file uploads.
 
 ## Rules
 

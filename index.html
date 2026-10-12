@@ -52,7 +52,7 @@
     for (const p of shown) {
       const li = document.createElement("li");
       const a = document.createElement("a");
-      a.href = `p/${p.slug}.html`;
+      a.href = p.url;
       a.innerHTML = `<span><div class="t"></div><div class="s"></div></span><span class="d"></span>`;
       a.querySelector(".t").textContent = p.title;
       a.querySelector(".s").textContent = p.slug;
@@ -62,8 +62,8 @@
   }
 
   async function load() {
-    const [files, commits] = await Promise.all([
-      fetch(`${api}/contents/p?ref=main`).then(r => r.ok ? r.json() : []),
+    const [tree, commits] = await Promise.all([
+      fetch(`${api}/git/trees/main?recursive=1`).then(r => { if (!r.ok) throw r; return r.json(); }),
       fetch(`${api}/commits?path=p&per_page=100`).then(r => r.ok ? r.json() : []).catch(() => []),
     ]);
     // Dates come from "publish: <slug>" commit messages; newest commit wins.
@@ -72,20 +72,33 @@
       const m = /^publish:\s*(\S+)/.exec(c.commit?.message || "");
       if (m && !dates[m[1]]) dates[m[1]] = new Date(c.commit.author.date);
     }
-    pages = (Array.isArray(files) ? files : [])
-      .filter(f => f.type === "file" && f.name.endsWith(".html"))
-      .map(f => { const slug = f.name.slice(0, -5); return { slug, title: slug, date: dates[slug] }; });
-    pages.sort((a, b) => (b.date || 0) - (a.date || 0) || a.slug.localeCompare(b.slug));
-    render();
+    // Any .html under p/, at any depth. A folder's index.html is linked as the folder.
+    pages = tree.tree
+      .filter(f => f.type === "blob" && f.path.startsWith("p/") && f.path.endsWith(".html"))
+      .map(f => {
+        const slug = f.path.slice(2).replace(/(\/index)?\.html$/, "");
+        const url = f.path.endsWith("/index.html") ? f.path.slice(0, -10) : f.path;
+        return { slug, url, path: f.path, title: slug, date: dates[slug] };
+      });
+    const sort = () => pages.sort((a, b) => (b.date || 0) - (a.date || 0) || a.slug.localeCompare(b.slug));
+    sort(); render();
     // Pull each page's <title> from the same origin (no API rate limit).
-    await Promise.all(pages.map(async p => {
+    const titles = pages.map(async p => {
       try {
-        const html = await fetch(`p/${p.slug}.html`).then(r => r.text());
+        const html = await fetch(p.url).then(r => r.text());
         const t = new DOMParser().parseFromString(html, "text/html").title.trim();
         if (t) p.title = t;
       } catch {}
-    }));
-    render(document.getElementById("q").value);
+    });
+    // Pages uploaded without a "publish:" commit message: look up their last commit (capped to spare the API limit).
+    const undated = pages.filter(p => !p.date).slice(0, 10).map(async p => {
+      try {
+        const [c] = await fetch(`${api}/commits?path=${encodeURIComponent(p.path)}&per_page=1`).then(r => r.ok ? r.json() : []);
+        if (c) p.date = new Date(c.commit.author.date);
+      } catch {}
+    });
+    await Promise.all([...titles, ...undated]);
+    sort(); render(document.getElementById("q").value);
   }
 
   document.getElementById("q").addEventListener("input", e => render(e.target.value));
