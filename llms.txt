@@ -1,0 +1,50 @@
+# irfanalimd sites
+
+> A personal publishing portal for HTML artifacts (research reports, explainers, learning exercises).
+> Hosted on GitHub Pages from the repo `irfanalimd/sites`, branch `main`.
+> To publish, upload ONE self-contained HTML file to the repo. No build step, no index to update.
+
+## How to publish
+
+1. Pick a short kebab-case slug for the page, e.g. `transformer-attention-explainer`.
+2. Write the file to: `p/<slug>.html` in repo `irfanalimd/sites` on branch `main`.
+3. Commit message: `publish: <slug>`.
+4. Tell the user the live URL: `https://irfanalimd.github.io/sites/p/<slug>.html`
+   (GitHub Pages takes ~30-60 seconds to update after the commit.)
+
+The homepage (`https://irfanalimd.github.io/sites/`) lists everything in `p/` automatically.
+
+## Rules
+
+- The file must be a complete, self-contained HTML document (`<!doctype html>`, `<title>`, inline CSS/JS).
+  External scripts/styles from public CDNs are fine. Do not reference local files that don't exist in the repo.
+- Always set a meaningful `<title>` — the homepage uses it as the page name.
+- Before writing, check whether `p/<slug>.html` already exists. If it does, pick a new slug
+  unless the user explicitly asked to update that page (updates require the existing file's `sha`).
+- Only write inside `p/`. Never modify `index.html`, `llms.txt`, or anything else unless asked.
+- Never include secrets, API keys, or private personal data — the site is public.
+
+## Upload methods (use whichever you have)
+
+### GitHub connector / MCP
+Use the tool for creating or updating a file (e.g. `create_or_update_file`) with
+owner=`irfanalimd`, repo=`sites`, branch=`main`, path=`p/<slug>.html`, the HTML as content,
+and message `publish: <slug>`.
+
+### gh CLI
+    gh api -X PUT repos/irfanalimd/sites/contents/p/<slug>.html \
+      -f message="publish: <slug>" -f branch=main \
+      -f content="$(base64 < page.html | tr -d '\n')"
+
+To update an existing page, first get its sha:
+    gh api repos/irfanalimd/sites/contents/p/<slug>.html --jq .sha
+and add `-f sha=<sha>` to the PUT.
+
+### REST API
+    PUT https://api.github.com/repos/irfanalimd/sites/contents/p/<slug>.html
+    Authorization: Bearer <token>
+    {"message": "publish: <slug>", "branch": "main", "content": "<base64 of the HTML>"}
+
+### Git (CLI agents)
+    git clone https://github.com/irfanalimd/sites && cp page.html sites/p/<slug>.html
+    then commit and push to main.
