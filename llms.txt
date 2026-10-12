@@ -30,8 +30,6 @@ with filters per category. A folder's `index.html` is linked as the folder
   unless the user explicitly asked to update that page (updates require the existing file's `sha`).
 - Only write inside `p/learning/`, `p/research/`, or `p/random/`. Never modify `index.html`, `llms.txt`, or anything else unless asked.
 - Never include secrets, API keys, or private personal data — the site is public.
-- Commits must be authored by the repo owner only. No `Co-Authored-By:` trailers, "Generated with" lines,
-  or any other AI/assistant attribution in commit messages.
 
 ## Upload methods (use whichever you have)
 
