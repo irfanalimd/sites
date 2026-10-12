@@ -6,47 +6,52 @@
 
 ## How to publish
 
-1. Pick a short kebab-case slug for the page, e.g. `transformer-attention-explainer`.
-2. Write the file to: `p/<slug>.html` in repo `irfanalimd/sites` on branch `main`.
-3. Commit message: `publish: <slug>`.
-4. Tell the user the live URL: `https://irfanalimd.github.io/sites/p/<slug>.html`
+1. Pick a category. Every page must live in exactly one of:
+   - `learning` — explainers, tutorials, exercises, things learned or taught
+   - `research` — research reports, literature reviews, analyses, findings
+   - `random`   — everything else (toys, experiments, one-offs)
+   If unsure, ask the user; otherwise default to `random`.
+2. Pick a short kebab-case slug, e.g. `transformer-attention-explainer`.
+3. Write the file to: `p/<category>/<slug>.html` in repo `irfanalimd/sites` on branch `main`.
+4. Commit message: `publish: <category>/<slug>`.
+5. Tell the user the live URL: `https://irfanalimd.github.io/sites/p/<category>/<slug>.html`
    (GitHub Pages takes ~30-60 seconds to update after the commit.)
 
-The homepage (`https://irfanalimd.github.io/sites/`) lists every `.html` under `p/` automatically, including
-subfolders (a folder's `index.html` is linked as the folder, e.g. `p/media/espresso-bench/`).
-Prefer the flat `p/<slug>.html` form for single-file uploads.
+The homepage (`https://irfanalimd.github.io/sites/`) lists every `.html` under `p/<category>/` automatically,
+with filters per category. A folder's `index.html` is linked as the folder
+(e.g. `p/random/espresso-bench/`), but prefer the flat `p/<category>/<slug>.html` form.
 
 ## Rules
 
 - The file must be a complete, self-contained HTML document (`<!doctype html>`, `<title>`, inline CSS/JS).
   External scripts/styles from public CDNs are fine. Do not reference local files that don't exist in the repo.
 - Always set a meaningful `<title>` — the homepage uses it as the page name.
-- Before writing, check whether `p/<slug>.html` already exists. If it does, pick a new slug
+- Before writing, check whether `p/<category>/<slug>.html` already exists. If it does, pick a new slug
   unless the user explicitly asked to update that page (updates require the existing file's `sha`).
-- Only write inside `p/`. Never modify `index.html`, `llms.txt`, or anything else unless asked.
+- Only write inside `p/learning/`, `p/research/`, or `p/random/`. Never modify `index.html`, `llms.txt`, or anything else unless asked.
 - Never include secrets, API keys, or private personal data — the site is public.
 
 ## Upload methods (use whichever you have)
 
 ### GitHub connector / MCP
 Use the tool for creating or updating a file (e.g. `create_or_update_file`) with
-owner=`irfanalimd`, repo=`sites`, branch=`main`, path=`p/<slug>.html`, the HTML as content,
-and message `publish: <slug>`.
+owner=`irfanalimd`, repo=`sites`, branch=`main`, path=`p/<category>/<slug>.html`, the HTML as content,
+and message `publish: <category>/<slug>`.
 
 ### gh CLI
-    gh api -X PUT repos/irfanalimd/sites/contents/p/<slug>.html \
-      -f message="publish: <slug>" -f branch=main \
+    gh api -X PUT repos/irfanalimd/sites/contents/p/<category>/<slug>.html \
+      -f message="publish: <category>/<slug>" -f branch=main \
       -f content="$(base64 < page.html | tr -d '\n')"
 
 To update an existing page, first get its sha:
-    gh api repos/irfanalimd/sites/contents/p/<slug>.html --jq .sha
+    gh api repos/irfanalimd/sites/contents/p/<category>/<slug>.html --jq .sha
 and add `-f sha=<sha>` to the PUT.
 
 ### REST API
-    PUT https://api.github.com/repos/irfanalimd/sites/contents/p/<slug>.html
+    PUT https://api.github.com/repos/irfanalimd/sites/contents/p/<category>/<slug>.html
     Authorization: Bearer <token>
-    {"message": "publish: <slug>", "branch": "main", "content": "<base64 of the HTML>"}
+    {"message": "publish: <category>/<slug>", "branch": "main", "content": "<base64 of the HTML>"}
 
 ### Git (CLI agents)
-    git clone https://github.com/irfanalimd/sites && cp page.html sites/p/<slug>.html
+    git clone https://github.com/irfanalimd/sites && cp page.html sites/p/<category>/<slug>.html
     then commit and push to main.

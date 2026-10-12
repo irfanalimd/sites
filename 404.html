@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Not found — Irfan Ali</title>
+<script>
+  // Pages that moved. Old path (after /sites/) → new path.
+  const moved = {
+    "p/media/espresso-bench": "p/random/espresso-bench/",
+    "p/hello-world.html": "p/random/hello-world.html",
+    "p/hello-world": "p/random/hello-world.html",
+  };
+  const rel = location.pathname.replace(/^\/sites\//, "").replace(/\/(index\.html)?$/, "");
+  if (moved[rel]) location.replace("/sites/" + moved[rel]);
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #fafaf9; --ink: #111; --muted: #9a9a98; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0b0b0c; --ink: #f2f2f0; --muted: #6b6b6a; } }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--ink);
+         font: 15px/1.5 Geist, system-ui, sans-serif; -webkit-font-smoothing: antialiased; padding: 20px; }
+  h1 { font: italic 400 clamp(40px, 7vw, 72px)/1 "Instrument Serif", Georgia, serif; margin: 0 0 20px; }
+  a { color: var(--muted); } a:hover { color: var(--ink); }
+</style>
+</head>
+<body>
+  <div><h1>Nothing here.</h1><a href="/sites/">← Back to the index</a></div>
+</body>
+</html>
