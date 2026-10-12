@@ -3,62 +3,206 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sites</title>
+<title>Mohammed Irfan Ali — Notes &amp; Explainers</title>
+<meta name="description" content="Research reports, interactive explainers, and learning exercises by Mohammed Irfan Ali.">
+<meta property="og:title" content="Mohammed Irfan Ali — Notes & Explainers">
+<meta property="og:description" content="Research reports, interactive explainers, and learning exercises.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2318181b'/%3E%3Ctext x='16' y='22' font-family='Georgia,serif' font-size='18' font-style='italic' fill='%23f7f6f3' text-anchor='middle'%3Ei%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #fbfaf8; --fg: #1d1d1b; --muted: #6b6a66; --line: #e6e3dd; --accent: #2f5d50; --card: #ffffff;
+    --bg: #f7f6f3;
+    --surface: #ffffff;
+    --ink: #18181b;
+    --ink-2: #3f3f46;
+    --muted: #8a8a90;
+    --line: #e6e4df;
+    --hover: #efede8;
+    --accent: #b4532a;
+    --serif: "Instrument Serif", Georgia, "Times New Roman", serif;
+    --sans: Inter, ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #151514; --fg: #ecebe7; --muted: #9a9892; --line: #2c2b29; --accent: #8cc7b2; --card: #1c1c1a; }
+    :root {
+      --bg: #0f0f10; --surface: #17171a; --ink: #ededec; --ink-2: #c4c4c6;
+      --muted: #7c7c82; --line: #252528; --hover: #1a1a1d; --accent: #e08a5f;
+    }
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--fg);
-         font: 16px/1.5 ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif; }
-  main { max-width: 760px; margin: 0 auto; padding: 56px 16px 80px; }
-  h1 { font-size: 28px; letter-spacing: -0.02em; margin: 0 0 4px; }
-  .sub { color: var(--muted); margin: 0 0 28px; }
-  .sub a { color: var(--accent); }
-  input { width: 100%; padding: 10px 12px; font: inherit; color: var(--fg); background: var(--card);
-          border: 1px solid var(--line); border-radius: 8px; margin-bottom: 20px; }
-  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  html { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 var(--sans); font-feature-settings: "cv11", "ss01";
+  }
+  a { color: inherit; }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 0 24px; }
+
+  /* Header */
+  header { display: flex; align-items: center; justify-content: space-between; padding: 28px 0; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 500; letter-spacing: -0.01em; }
+  .mark {
+    width: 28px; height: 28px; border-radius: 8px; background: var(--ink); color: var(--bg);
+    display: grid; place-items: center; font: italic 19px/1 var(--serif);
+  }
+  nav { display: flex; gap: 22px; font-size: 14px; }
+  nav a { color: var(--muted); text-decoration: none; transition: color .15s; }
+  nav a:hover { color: var(--ink); }
+
+  /* Hero */
+  .hero { padding: 72px 0 56px; }
+  .eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 18px; }
+  h1 {
+    font: 400 clamp(44px, 7vw, 68px)/1.02 var(--serif); letter-spacing: -0.02em; margin: 0 0 20px;
+  }
+  h1 em { color: var(--accent); }
+  .lede { font-size: 17px; color: var(--ink-2); max-width: 520px; margin: 0; }
+
+  /* Toolbar */
+  .toolbar {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 14px 0; border-top: 1px solid var(--ink); position: sticky; top: 0; background: var(--bg); z-index: 2;
+  }
+  .count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .search { position: relative; flex: 0 1 260px; }
+  .search input {
+    width: 100%; height: 36px; padding: 0 44px 0 14px; font: inherit; font-size: 14px; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--line); border-radius: 999px; transition: border-color .15s, box-shadow .15s;
+  }
+  .search input::placeholder { color: var(--muted); }
+  .search input:focus { outline: none; border-color: var(--ink-2); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ink) 6%, transparent); }
+  .search kbd {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    font: 11px/1 var(--sans); color: var(--muted); border: 1px solid var(--line); border-radius: 5px; padding: 3px 6px;
+  }
+  .search input:focus + kbd { opacity: 0; }
+
+  /* List */
+  .year {
+    font: italic 400 22px/1 var(--serif); color: var(--muted); padding: 36px 0 10px; margin: 0;
+  }
   ul { list-style: none; padding: 0; margin: 0; }
-  li a { display: flex; justify-content: space-between; gap: 16px; padding: 14px 4px;
-         border-bottom: 1px solid var(--line); color: inherit; text-decoration: none; }
-  li a:hover .t { color: var(--accent); }
-  .t { font-weight: 550; }
-  .s { color: var(--muted); font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-  .d { color: var(--muted); font-size: 14px; white-space: nowrap; }
-  .empty { color: var(--muted); padding: 24px 4px; }
+  li { border-bottom: 1px solid var(--line); animation: rise .4s ease both; }
+  .row {
+    display: grid; grid-template-columns: 76px 1fr auto; align-items: baseline; gap: 20px;
+    padding: 18px 12px; margin: 0 -12px; border-radius: 10px; text-decoration: none; transition: background .15s;
+  }
+  .row:hover { background: var(--hover); }
+  .row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .date { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .title { font-size: 17px; font-weight: 500; letter-spacing: -0.012em; line-height: 1.35; }
+  .path { display: block; font-size: 13px; color: var(--muted); margin-top: 3px; font-weight: 400; letter-spacing: 0; }
+  .new {
+    display: inline-block; vertical-align: 2px; margin-left: 8px; font-size: 10.5px; font-weight: 600; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    border-radius: 999px; padding: 2px 7px;
+  }
+  .arrow { color: var(--muted); transition: transform .2s ease, color .2s; font-size: 16px; }
+  .row:hover .arrow { transform: translateX(4px); color: var(--ink); }
+  .empty { color: var(--muted); padding: 48px 0; text-align: center; border: 0; }
+  .skel { height: 60px; border-bottom: 1px solid var(--line); position: relative; overflow: hidden; }
+  .skel::after {
+    content: ""; position: absolute; left: 96px; top: 22px; height: 14px; width: 45%; border-radius: 4px;
+    background: linear-gradient(90deg, var(--line), var(--hover), var(--line)); background-size: 200% 100%; animation: shimmer 1.2s infinite;
+  }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+  @keyframes rise { from { opacity: 0; transform: translateY(4px); } }
+  @media (prefers-reduced-motion: reduce) { li, .skel::after { animation: none; } }
+
+  /* Footer */
+  footer {
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+    padding: 64px 0 48px; font-size: 13px; color: var(--muted);
+  }
+  footer a { color: var(--muted); text-underline-offset: 3px; }
+  footer a:hover { color: var(--ink); }
+
+  @media (max-width: 600px) {
+    .wrap { padding: 0 16px; }
+    nav { gap: 16px; }
+    .hero { padding: 40px 0 36px; }
+    .row { grid-template-columns: 1fr auto; gap: 4px 16px; }
+    .date { grid-column: 1 / -1; order: -1; }
+    .search { flex-basis: 180px; }
+    .search kbd { display: none; }
+    .search input { padding-right: 14px; }
+  }
 </style>
 </head>
 <body>
-<main>
-  <h1>Sites</h1>
-  <p class="sub">Reports, explainers, and exercises. Agents: see <a href="llms.txt">llms.txt</a>.</p>
-  <input id="q" type="search" placeholder="Filter…" aria-label="Filter pages">
-  <ul id="list"><li class="empty">Loading…</li></ul>
-</main>
+<div class="wrap">
+  <header>
+    <a class="brand" href="./"><span class="mark">i</span>Mohammed Irfan Ali</a>
+    <nav>
+      <a href="https://github.com/irfanalimd/sites">GitHub</a>
+      <a href="llms.txt" title="Publishing instructions for AI agents">llms.txt</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <p class="eyebrow">Notes &amp; Explainers</p>
+    <h1>Things I’ve been <em>learning</em>,<br>written down.</h1>
+    <p class="lede">Research reports, interactive explainers, and small exercises — made while thinking out loud, kept here for reference and teaching.</p>
+  </section>
+
+  <main>
+    <div class="toolbar">
+      <span class="count" id="count">&nbsp;</span>
+      <label class="search">
+        <input id="q" type="search" placeholder="Search" aria-label="Search pages" autocomplete="off">
+        <kbd>/</kbd>
+      </label>
+    </div>
+    <div id="list"><div class="skel"></div><div class="skel"></div><div class="skel"></div></div>
+  </main>
+
+  <footer>
+    <span>© <span id="yr"></span> Mohammed Irfan Ali</span>
+    <span>Published straight from conversations · <a href="llms.txt">how it works</a></span>
+  </footer>
+</div>
 <script>
   const OWNER = "irfanalimd", REPO = "sites";
   const api = `https://api.github.com/repos/${OWNER}/${REPO}`;
   const list = document.getElementById("list");
+  const q = document.getElementById("q");
+  const WEEK = 7 * 864e5;
   let pages = [];
+  document.getElementById("yr").textContent = new Date().getFullYear();
+
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
 
   function render(filter = "") {
-    const f = filter.toLowerCase();
+    const f = filter.trim().toLowerCase();
     const shown = pages.filter(p => (p.title + " " + p.slug).toLowerCase().includes(f));
-    list.innerHTML = "";
-    if (!shown.length) { list.innerHTML = `<li class="empty">${pages.length ? "No matches." : "Nothing published yet."}</li>`; return; }
-    for (const p of shown) {
-      const li = document.createElement("li");
-      const a = document.createElement("a");
-      a.href = p.url;
-      a.innerHTML = `<span><div class="t"></div><div class="s"></div></span><span class="d"></span>`;
-      a.querySelector(".t").textContent = p.title;
-      a.querySelector(".s").textContent = p.slug;
-      a.querySelector(".d").textContent = p.date ? p.date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "";
-      li.appendChild(a); list.appendChild(li);
+    document.getElementById("count").textContent = f
+      ? `${shown.length} of ${pages.length}`
+      : `${pages.length} ${pages.length === 1 ? "page" : "pages"}`;
+    list.replaceChildren();
+    if (!shown.length) {
+      list.append(el("p", "empty", pages.length ? "Nothing matches that search." : "Nothing published yet."));
+      return;
     }
+    // Group by year, newest first; undated pages go last.
+    let year, ul;
+    shown.forEach((p, i) => {
+      const y = p.date ? p.date.getFullYear() : "Undated";
+      if (y !== year) { year = y; list.append(el("h2", "year", String(y))); ul = el("ul"); list.append(ul); }
+      const li = el("li"); li.style.animationDelay = `${Math.min(i, 12) * 25}ms`;
+      const a = el("a", "row"); a.href = p.url;
+      a.append(el("span", "date", p.date ? p.date.toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "—"));
+      const t = el("span", "title", p.title);
+      if (p.date && Date.now() - p.date < WEEK) t.append(el("span", "new", "New"));
+      t.append(el("span", "path", p.slug));
+      a.append(t, el("span", "arrow", "→"));
+      li.append(a); ul.append(li);
+    });
   }
 
   async function load() {
@@ -81,7 +225,6 @@
         return { slug, url, path: f.path, title: slug, date: dates[slug] };
       });
     const sort = () => pages.sort((a, b) => (b.date || 0) - (a.date || 0) || a.slug.localeCompare(b.slug));
-    sort(); render();
     // Pull each page's <title> from the same origin (no API rate limit).
     const titles = pages.map(async p => {
       try {
@@ -98,11 +241,17 @@
       } catch {}
     });
     await Promise.all([...titles, ...undated]);
-    sort(); render(document.getElementById("q").value);
+    sort(); render(q.value);
   }
 
-  document.getElementById("q").addEventListener("input", e => render(e.target.value));
-  load().catch(() => { list.innerHTML = `<li class="empty">Couldn't load the list (GitHub API limit?). Try again shortly.</li>`; });
+  q.addEventListener("input", e => render(e.target.value));
+  document.addEventListener("keydown", e => {
+    if (e.key === "/" && document.activeElement !== q) { e.preventDefault(); q.focus(); }
+    if (e.key === "Escape" && document.activeElement === q) { q.value = ""; render(); q.blur(); }
+  });
+  load().catch(() => {
+    list.replaceChildren(el("p", "empty", "Couldn’t load the list right now (GitHub API limit). Try again in a few minutes."));
+  });
 </script>
 </body>
 </html>
