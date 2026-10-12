@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Irfan Ali — Index</title>
 <meta name="description" content="Learning notes, research, and other experiments by Irfan Ali. Guided by a human, written by a machine.">
 <meta property="og:title" content="Irfan Ali — Index">
@@ -29,120 +29,92 @@
     :root { --bg: #0b0b0c; --ink: #f2f2f0; --ink-2: #a8a8a6; --muted: #6b6b6a; --line: #1f1f21; --hover: #141416; }
   }
   * { box-sizing: border-box; }
-  html { -webkit-font-smoothing: antialiased; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); }
+  html { -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 var(--sans); }
   a { color: inherit; text-decoration: none; }
-  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
-  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 40px; }
-  .mono { font-family: var(--mono); font-size: 12px; letter-spacing: .02em; text-transform: uppercase; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 
-  /* Header */
-  header { display: flex; justify-content: space-between; align-items: center; padding: 32px 0; }
+  /* One narrow column everywhere: reads like a phone screen, even on a desktop. */
+  .col {
+    max-width: 560px; margin: 0 auto;
+    padding: 0 max(24px, env(safe-area-inset-right)) 0 max(24px, env(safe-area-inset-left));
+  }
+  .mono { font-family: var(--mono); font-size: 12px; letter-spacing: .03em; text-transform: uppercase; }
+
+  header { display: flex; justify-content: space-between; align-items: baseline; padding: 32px 0 0; }
   .name { font-weight: 500; letter-spacing: -0.01em; }
-  header nav { display: flex; gap: 28px; color: var(--ink-2); }
-  header nav a:hover { color: var(--ink); }
+  header a:not(.name) { color: var(--muted); transition: color .15s; }
+  header a:hover { color: var(--ink); }
 
-  /* Statement */
-  .statement { padding: 120px 0 112px; }
   h1 {
-    font-weight: 400; font-size: clamp(40px, 6.4vw, 84px); line-height: 1; letter-spacing: -0.045em;
-    margin: 0; max-width: 13ch;
+    font-weight: 400; font-size: clamp(40px, 11vw, 56px); line-height: 1.02; letter-spacing: -0.045em;
+    margin: 96px 0 72px;
   }
   h1 span { color: var(--muted); }
 
-  /* Controls */
-  .controls {
-    display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap;
-    padding: 0 0 20px; border-bottom: 1px solid var(--ink);
+  /* Category tabs: the only control. Sticks to the top while scrolling. */
+  nav.tabs {
+    position: sticky; top: 0; z-index: 2; background: var(--bg);
+    display: flex; gap: 24px; padding: 16px 0 14px; border-bottom: 1px solid var(--ink);
+    overflow-x: auto; scrollbar-width: none;
   }
-  .filters, .sorts { display: flex; gap: 22px; align-items: center; }
-  .filters button, .sorts button { color: var(--muted); transition: color .15s; }
-  .filters button:hover, .sorts button:hover { color: var(--ink); }
-  .filters button[aria-pressed="true"], .sorts button[aria-pressed="true"] { color: var(--ink); }
-  .filters sup { font-family: var(--mono); font-size: 10px; margin-left: 3px; vertical-align: 6px; }
-  .sorts .label { color: var(--muted); }
-  .search {
-    width: 120px; font: inherit; color: var(--ink); background: none; border: 0; border-bottom: 1px solid transparent;
-    padding: 2px 0; transition: border-color .15s, width .2s;
-  }
-  .search::placeholder { color: var(--muted); }
-  .search:focus { outline: none; border-bottom-color: var(--ink); width: 180px; }
+  nav.tabs::-webkit-scrollbar { display: none; }
+  .tabs button { color: var(--muted); white-space: nowrap; transition: color .15s; padding: 4px 0; }
+  .tabs button:hover, .tabs button[aria-selected="true"] { color: var(--ink); }
+  .tabs sup { font-family: var(--mono); font-size: 10px; margin-left: 3px; vertical-align: 7px; }
 
-  /* Index */
-  .head, .row { display: grid; grid-template-columns: 56px 1fr 160px 110px 24px; align-items: baseline; gap: 16px; }
-  .head { color: var(--muted); padding: 14px 0; border-bottom: 1px solid var(--line); }
-  .group { padding: 48px 0 14px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; }
-  .group h2 { margin: 0; font-weight: 500; font-size: 15px; }
-  .row { padding: 22px 0; border-bottom: 1px solid var(--line); position: relative; transition: padding .25s ease; }
-  .row::before { content: ""; position: absolute; inset: 0 -16px; background: var(--hover); opacity: 0; transition: opacity .2s; z-index: -1; border-radius: 4px; }
+  ol { list-style: none; margin: 0; padding: 0; min-height: 180px; }
+  li { border-bottom: 1px solid var(--line); animation: rise .35s ease both; }
+  .row { display: block; padding: 22px 0; position: relative; }
+  .row::before {
+    content: ""; position: absolute; inset: 0 -14px; border-radius: 6px;
+    background: var(--hover); opacity: 0; transition: opacity .2s; z-index: -1;
+  }
   .row:hover::before { opacity: 1; }
-  .row:focus-visible { outline: 1px solid var(--ink); outline-offset: 4px; }
-  .num, .cat, .date { color: var(--muted); }
-  .title { font-size: 20px; letter-spacing: -0.02em; line-height: 1.25; }
-  .arrow { color: var(--muted); opacity: 0; transform: translateX(-6px); transition: opacity .2s, transform .2s; justify-self: end; }
-  .row:hover .arrow { opacity: 1; transform: none; color: var(--ink); }
-  .row:hover .num { color: var(--ink); }
-  .empty { padding: 56px 0; color: var(--muted); border-bottom: 1px solid var(--line); }
-  #list { position: relative; z-index: 0; min-height: 200px; }
-  #list.loading { opacity: .4; }
+  .row:focus-visible { outline: 1px solid var(--ink); outline-offset: 4px; border-radius: 2px; }
+  .title { display: flex; justify-content: space-between; gap: 16px; font-size: 19px; letter-spacing: -0.02em; line-height: 1.3; }
+  .title i { font-style: normal; color: var(--muted); transition: transform .2s, color .2s; }
+  .row:hover .title i { transform: translateX(3px); color: var(--ink); }
+  .meta { display: block; color: var(--muted); margin-top: 8px; }
+  .empty { padding: 48px 0; color: var(--muted); }
+  ol.loading li { animation: none; }
+  .skel { height: 92px; border-bottom: 1px solid var(--line); }
+  .skel::after {
+    content: ""; display: block; width: 55%; height: 14px; margin-top: 30px; border-radius: 3px;
+    background: linear-gradient(90deg, var(--line), var(--hover), var(--line)); background-size: 200% 100%; animation: shimmer 1.2s infinite;
+  }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+  @keyframes rise { from { opacity: 0; transform: translateY(4px); } }
+  @media (prefers-reduced-motion: reduce) { li, .skel::after { animation: none; } }
 
-  /* Footer */
-  footer { padding: 160px 0 48px; }
-  .sign { font: italic 400 clamp(32px, 4.4vw, 56px)/1.05 var(--serif); letter-spacing: -0.01em; margin: 0 0 64px; }
+  footer { padding: 144px 0 max(40px, env(safe-area-inset-bottom)); }
+  .sign { font: italic 400 clamp(34px, 9vw, 44px)/1.05 var(--serif); margin: 0 0 56px; }
   .sign span { color: var(--muted); }
-  .base { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; color: var(--muted); padding-top: 20px; border-top: 1px solid var(--line); }
+  .base { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); padding-top: 18px; border-top: 1px solid var(--line); }
   .base a:hover { color: var(--ink); }
 
-  @media (max-width: 760px) {
-    .wrap { padding: 0 20px; }
-    .statement { padding: 72px 0 64px; }
-    .head { display: none; }
-    .row { grid-template-columns: 1fr auto; gap: 6px 16px; padding: 20px 0; }
-    .num { display: none; }
-    .title { grid-column: 1 / -1; font-size: 18px; }
-    .cat { grid-row: 2; }
-    .date { grid-row: 2; justify-self: end; }
-    .arrow { display: none; }
-    .controls { flex-direction: column; align-items: flex-start; gap: 14px; }
-    .search, .search:focus { width: 100%; }
-    footer { padding-top: 112px; }
-  }
-  @media (max-width: 380px) { .filters { gap: 16px; } }
+  @media (min-width: 900px) { h1 { margin: 128px 0 96px; } }
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="col">
   <header>
     <a class="name" href="./">Irfan Ali</a>
-    <nav>
-      <a href="https://github.com/irfanalimd/sites">GitHub</a>
-      <a href="llms.txt">llms.txt</a>
-    </nav>
+    <a href="https://github.com/irfanalimd/sites">GitHub</a>
   </header>
 
-  <section class="statement">
-    <h1>Learning, research <span>&amp; other experiments.</span></h1>
-  </section>
+  <h1>Learning, research <span>&amp; other experiments.</span></h1>
 
   <main>
-    <div class="controls">
-      <div class="filters" role="group" aria-label="Category" id="filters"></div>
-      <div class="sorts" role="group" aria-label="Sort">
-        <input class="search" id="q" type="search" placeholder="Search" aria-label="Search" autocomplete="off">
-        <span class="label">Sort</span>
-        <button data-sort="date" aria-pressed="true">Date</button>
-        <button data-sort="category" aria-pressed="false">Category</button>
-      </div>
-    </div>
-    <div class="head mono" aria-hidden="true"><span>No.</span><span>Title</span><span>Category</span><span>Date</span><span></span></div>
-    <div id="list" class="loading"></div>
+    <nav class="tabs" role="tablist" aria-label="Category" id="tabs"></nav>
+    <ol id="list" class="loading" aria-live="polite"><li class="skel"></li><li class="skel"></li><li class="skel"></li></ol>
   </main>
 
   <footer>
     <p class="sign">Guided by a human.<br><span>Written by a machine.</span></p>
     <div class="base mono">
       <span>© <span id="yr"></span> Irfan Ali</span>
-      <a href="llms.txt">Published from conversation ↗</a>
+      <a href="llms.txt">llms.txt</a>
     </div>
   </footer>
 </div>
@@ -152,9 +124,8 @@
   const CATEGORIES = ["learning", "research", "random"];
   const label = c => c[0].toUpperCase() + c.slice(1);
   const list = document.getElementById("list");
-  const q = document.getElementById("q");
   let pages = [];
-  let state = { cat: "all", sort: "date" };
+  let current = CATEGORIES.includes(location.hash.slice(1)) ? location.hash.slice(1) : "all";
   document.getElementById("yr").textContent = new Date().getFullYear();
 
   const el = (tag, cls, text) => {
@@ -163,57 +134,39 @@
     if (text != null) e.textContent = text;
     return e;
   };
-  const fmt = d => d ? d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
-  const byDate = (a, b) => (b.date || 0) - (a.date || 0) || a.title.localeCompare(b.title);
+  const fmt = d => d ? d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "";
 
-  function renderFilters() {
-    const box = document.getElementById("filters");
+  function renderTabs() {
+    const box = document.getElementById("tabs");
     box.replaceChildren();
     for (const c of ["all", ...CATEGORIES]) {
       const n = c === "all" ? pages.length : pages.filter(p => p.cat === c).length;
       const b = el("button", null, c === "all" ? "All" : label(c));
-      b.append(el("sup", null, String(n)));
-      b.setAttribute("aria-pressed", String(state.cat === c));
-      b.onclick = () => { state.cat = c; history.replaceState(null, "", c === "all" ? location.pathname : `#${c}`); renderFilters(); render(); };
+      b.setAttribute("role", "tab");
+      b.setAttribute("aria-selected", String(current === c));
+      if (pages.length) b.append(el("sup", null, String(n)));
+      b.onclick = () => {
+        current = c;
+        history.replaceState(null, "", c === "all" ? location.pathname : `#${c}`);
+        renderTabs(); render();
+      };
       box.append(b);
     }
   }
 
-  function row(p, i) {
-    const a = el("a", "row"); a.href = p.url;
-    a.append(
-      el("span", "num mono", String(i + 1).padStart(2, "0")),
-      el("span", "title", p.title),
-      el("span", "cat mono", label(p.cat)),
-      el("span", "date mono", fmt(p.date)),
-      el("span", "arrow", "→"),
-    );
-    return a;
-  }
-
+  // Newest first. Category shown on each row in "All"; tabs narrow it down.
   function render() {
-    const f = q.value.trim().toLowerCase();
-    const shown = pages
-      .filter(p => state.cat === "all" || p.cat === state.cat)
-      .filter(p => !f || (p.title + " " + p.slug).toLowerCase().includes(f))
-      .sort(byDate);
+    const shown = pages.filter(p => current === "all" || p.cat === current);
     list.replaceChildren();
-    if (!shown.length) {
-      list.append(el("p", "empty", f ? "Nothing matches that search." : "Nothing here yet."));
-      return;
-    }
-    if (state.sort === "category") {
-      let i = 0;
-      for (const c of CATEGORIES) {
-        const group = shown.filter(p => p.cat === c);
-        if (!group.length) continue;
-        const g = el("div", "group");
-        g.append(el("h2", null, label(c)), el("span", "mono", String(group.length).padStart(2, "0")));
-        list.append(g, ...group.map(p => row(p, i++)));
-      }
-    } else {
-      list.append(...shown.map(row));
-    }
+    if (!shown.length) { list.append(el("li", "empty", "Nothing here yet.")); return; }
+    shown.forEach((p, i) => {
+      const li = el("li"); li.style.animationDelay = `${Math.min(i, 10) * 30}ms`;
+      const a = el("a", "row"); a.href = p.url;
+      const t = el("span", "title", p.title); t.append(el("i", null, "→"));
+      const meta = [current === "all" ? label(p.cat) : null, fmt(p.date)].filter(Boolean).join(" · ");
+      a.append(t, el("span", "meta mono", meta));
+      li.append(a); list.append(li);
+    });
   }
 
   async function load() {
@@ -253,26 +206,15 @@
       } catch {}
     });
     await Promise.all([...titles, ...undated]);
+    pages.sort((a, b) => (b.date || 0) - (a.date || 0) || a.title.localeCompare(b.title));
     list.classList.remove("loading");
-    renderFilters(); render();
+    renderTabs(); render();
   }
 
-  const hash = location.hash.slice(1);
-  if (CATEGORIES.includes(hash)) state.cat = hash;
-  renderFilters();
-  document.querySelectorAll("[data-sort]").forEach(b => b.onclick = () => {
-    state.sort = b.dataset.sort;
-    document.querySelectorAll("[data-sort]").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
-    render();
-  });
-  q.addEventListener("input", render);
-  document.addEventListener("keydown", e => {
-    if (e.key === "/" && document.activeElement !== q) { e.preventDefault(); q.focus(); }
-    if (e.key === "Escape" && document.activeElement === q) { q.value = ""; render(); q.blur(); }
-  });
+  renderTabs();
   load().catch(() => {
     list.classList.remove("loading");
-    list.replaceChildren(el("p", "empty", "Couldn’t load the index right now (GitHub API limit). Try again in a few minutes."));
+    list.replaceChildren(el("li", "empty", "Couldn’t load the index right now. Try again in a few minutes."));
   });
 </script>
 </body>
