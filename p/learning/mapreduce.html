@@ -1,0 +1,1341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="description" content="A chapter-by-chapter learning guide for implementing MIT 6.5840 Lab 1 MapReduce in Go.">
+<title>Build MapReduce in Go · MIT 6.5840 Lab 1</title>
+<style>
+:root{
+  --page:#f5f6f8;--surface:#fff;--surface-soft:#fafbfc;--ink:#1c2434;--ink-soft:#3e4a5d;
+  --muted:#758094;--line:#e4e8ee;--line-strong:#d4dbe5;--accent:#4f46e5;--accent-dark:#3730a3;
+  --accent-wash:#f0efff;--teal:#0f766e;--teal-wash:#edf9f6;--code:#111827;
+  --sidebar:278px;--content:890px;--radius:14px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:86px}
+body{margin:0;background:var(--page);color:var(--ink);font:15px/1.72 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--accent-dark);text-decoration:none}
+a:hover{text-decoration:underline;text-underline-offset:3px}
+button,input{font:inherit}
+code,pre,.mono{font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace}
+.skip-link{position:absolute;left:-999px;top:8px;z-index:100;background:#fff;padding:10px 14px;border-radius:8px}.skip-link:focus{left:10px}
+.progress-track{position:fixed;inset:0 0 auto;height:3px;z-index:60;background:transparent}.progress-track span{display:block;width:0;height:100%;background:linear-gradient(90deg,var(--accent),#14b8a6)}
+.topbar{height:62px;position:sticky;top:3px;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:0 30px;background:rgba(255,255,255,.94);border-bottom:1px solid var(--line);backdrop-filter:blur(16px)}
+.brand{display:flex;align-items:center;gap:11px;min-width:0}.brand-mark{display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:var(--ink);color:#fff;font-size:11px;font-weight:900;letter-spacing:-.03em}.brand-copy{display:flex;flex-direction:column;line-height:1.15}.brand-name{font-size:12px;font-weight:850;letter-spacing:.025em}.brand-sub{margin-top:4px;color:var(--muted);font-size:10px;letter-spacing:.045em}
+.topbar-right{display:flex;align-items:center;gap:12px}.topbar-context{color:var(--muted);font-size:11px;font-weight:650}.action-button{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--line-strong);border-radius:9px;background:#fff;color:var(--ink);font-size:11px;font-weight:800;cursor:pointer;transition:background .15s,border-color .15s}.action-button:hover{background:var(--accent-wash);border-color:#c7c5fa}
+.layout{display:grid;grid-template-columns:var(--sidebar) minmax(0,1fr);max-width:1600px;margin:0 auto;min-height:calc(100vh - 65px)}
+aside{position:sticky;top:65px;align-self:start;height:calc(100vh - 65px);overflow-y:auto;padding:28px 19px 24px 23px;background:#f8f9fb;border-right:1px solid var(--line);scrollbar-width:thin;scrollbar-color:#d7dce5 transparent}
+.sidebar-top{display:flex;align-items:center;justify-content:space-between;margin:0 0 16px;padding:0 7px}.sidebar-title{color:var(--ink);font-size:12px;font-weight:850;letter-spacing:.015em}.sidebar-count{color:var(--muted);font-size:10px;font-weight:700}
+.search-wrap{position:relative;margin-bottom:21px}.search-icon{position:absolute;left:12px;top:50%;width:14px;height:14px;transform:translateY(-50%);color:#8c96a7;pointer-events:none}.nav-search{width:100%;padding:10px 11px 10px 34px;border:1px solid var(--line-strong);border-radius:9px;background:#fff;color:var(--ink);font-size:11px;outline:none;transition:border-color .15s,box-shadow .15s}.nav-search::placeholder{color:#9aa3b2}.nav-search:focus{border-color:#aaa7f6;box-shadow:0 0 0 3px #eeedff}
+.nav-group{margin:0 0 18px}.nav-group-head{display:flex;align-items:center;gap:9px;margin:0 7px 7px;color:#8b94a4;font-size:9px;font-weight:850;letter-spacing:.105em;text-transform:uppercase}.nav-group-number{display:grid;place-items:center;width:19px;height:19px;border:1px solid #e0e4eb;border-radius:6px;color:#657087;font-size:9px;letter-spacing:0;background:#fff}.nav-group ul{list-style:none;margin:0;padding:0}.nav-group li{margin:2px 0}.chapter-nav a{display:flex;align-items:baseline;gap:9px;padding:6px 8px;border-radius:7px;color:#566174;font-size:11px;line-height:1.45;transition:background .12s,color .12s;text-decoration:none}.chapter-nav a:hover{background:#eceff5;color:var(--ink)}.chapter-nav a.active{background:var(--accent-wash);color:var(--accent-dark);font-weight:780}.nav-num{flex:0 0 21px;color:#a0a8b6;font:750 9px/1.7 "SFMono-Regular",Consolas,monospace}.chapter-nav a.active .nav-num{color:var(--accent)}.nav-title{min-width:0}.empty-search{display:none;margin:4px 7px;color:var(--muted);font-size:11px}.sidebar-foot{margin:23px 7px 0;padding-top:16px;border-top:1px solid var(--line);color:#8992a2;font-size:10px;line-height:1.8}.sidebar-foot strong{color:#596579;font-weight:800}
+.mobile-contents{display:none}
+main{min-width:0;padding:35px clamp(22px,4.1vw,62px) 70px}.main-inner{max-width:1100px;margin:0 auto}
+.hero{position:relative;overflow:hidden;padding:38px 40px 30px;border:1px solid #dfe3ed;border-radius:17px;background:var(--surface);box-shadow:0 7px 28px rgba(25,35,56,.035)}.hero:after{content:"";position:absolute;top:-108px;right:-75px;width:300px;height:300px;border:1px solid #e7e6ff;border-radius:50%;box-shadow:0 0 0 28px rgba(240,239,255,.42),0 0 0 58px rgba(240,239,255,.25);pointer-events:none}.hero-topline{position:relative;z-index:1;display:flex;align-items:center;gap:8px;margin-bottom:17px}.eyebrow{display:inline-flex;align-items:center;gap:7px;padding:5px 9px;border:1px solid #dcdafd;border-radius:6px;background:var(--accent-wash);color:var(--accent-dark);font-size:9px;font-weight:900;letter-spacing:.11em;text-transform:uppercase}.eyebrow-dot{width:5px;height:5px;border-radius:50%;background:var(--accent)}.hero h1{position:relative;z-index:1;max-width:760px;margin:0;color:#172033;font-size:clamp(37px,4.4vw,54px);font-weight:800;line-height:1.08;letter-spacing:-.055em}.hero-lead{position:relative;z-index:1;max-width:750px;margin:15px 0 0;color:#596579;font-size:15px;line-height:1.85}.hero-bottom{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-top:25px;padding-top:20px;border-top:1px solid #edf0f4}.hero-meta{display:flex;align-items:center;flex-wrap:wrap;gap:15px;color:#667185;font-size:10px;font-weight:750}.hero-meta span{display:inline-flex;align-items:center;gap:7px}.meta-dot{width:4px;height:4px;border-radius:50%;background:#a6adba}.start-link{display:inline-flex;align-items:center;gap:9px;padding:9px 13px;border-radius:8px;background:var(--ink);color:#fff;font-size:11px;font-weight:800;text-decoration:none;transition:transform .15s,background .15s}.start-link:hover{background:#303c51;transform:translateY(-1px);text-decoration:none}
+.workflow{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(240px,.8fr);gap:25px;align-items:center;margin:23px 0 25px;padding:20px 24px;border:1px solid var(--line);border-radius:13px;background:#fbfcfd}.workflow-label{margin:0 0 7px;color:#8a94a4;font-size:9px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}.workflow h2{margin:0 0 6px;font-size:15px;letter-spacing:-.02em}.workflow-copy{margin:0;color:#657084;font-size:11px;line-height:1.7}.workflow-steps{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap}.workflow-step{padding:7px 9px;border:1px solid #e1e6ee;border-radius:7px;background:#fff;color:#465267;font-size:10px;font-weight:750;white-space:nowrap}.workflow-arrow{color:#9ca5b3;font-size:12px}
+.roadmap-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin:30px 2px 12px}.section-overline{margin:0 0 3px;color:#8a94a4;font-size:9px;font-weight:900;letter-spacing:.13em;text-transform:uppercase}.roadmap-head h2{margin:0;font-size:17px;letter-spacing:-.03em}.roadmap-note{color:#8a94a4;font-size:10px}.roadmap{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;margin-bottom:33px}.roadmap-card{display:flex;flex-direction:column;min-height:106px;padding:13px 13px 12px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--ink);text-decoration:none;transition:transform .15s,border-color .15s,box-shadow .15s}.roadmap-card:hover{transform:translateY(-2px);border-color:#c8c5fb;box-shadow:0 5px 15px rgba(42,44,90,.06);text-decoration:none}.roadmap-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.roadmap-number{display:grid;place-items:center;width:22px;height:22px;border-radius:6px;background:var(--accent-wash);color:var(--accent-dark);font-size:9px;font-weight:900}.roadmap-range{color:#929bad;font:750 9px/1.2 "SFMono-Regular",Consolas,monospace}.roadmap-card strong{font-size:10px;line-height:1.45;letter-spacing:-.01em}.roadmap-card small{margin-top:5px;color:#929bad;font-size:9px}
+.content{max-width:var(--content);margin:0 auto}.part-heading{display:flex;align-items:center;gap:13px;margin:38px 0 7px;padding:0 0 13px;border-bottom:1px solid var(--line-strong);scroll-margin-top:88px}.part-mark{display:grid;place-items:center;flex:0 0 35px;width:35px;height:35px;border-radius:10px;background:#e8eaf0;color:#5c6678;font-size:11px;font-weight:900}.part-heading-copy{min-width:0}.part-heading-copy p{margin:0 0 1px;color:#9099a8;font-size:9px;font-weight:900;letter-spacing:.13em}.part-heading-copy h2{margin:0;font-size:17px;line-height:1.3;letter-spacing:-.025em}.part-range{margin-left:auto;color:#8d96a5;font-size:10px;white-space:nowrap}
+.chapter{padding:30px 3px 25px;border-bottom:1px solid var(--line-strong);scroll-margin-top:83px}.chapter-head{display:flex;align-items:flex-start;gap:15px;margin-bottom:23px}.chapter-index{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:0 0 52px;min-height:54px;padding:7px 3px;border:1px solid #e2e3fb;border-radius:10px;background:#f7f6ff;color:var(--accent-dark)}.chapter-index span{font-size:7px;font-weight:900;letter-spacing:.09em}.chapter-index strong{margin-top:1px;font:850 19px/1.15 "SFMono-Regular",Consolas,monospace;letter-spacing:-.06em}.chapter-title{min-width:0;padding-top:2px}.chapter-kicker{margin:0 0 5px!important;color:#8b94a5!important;font-size:9px!important;font-weight:850;letter-spacing:.11em;text-transform:uppercase}.chapter h2{margin:0;color:#1a2333;font-size:clamp(23px,2.5vw,30px);font-weight:790;line-height:1.25;letter-spacing:-.04em}.chapter h3{margin:29px 0 9px;color:#293448;font-size:17px;font-weight:780;line-height:1.4;letter-spacing:-.025em}.chapter h4{margin:21px 0 7px;color:#354156;font-size:14px;font-weight:800}.chapter p{margin:12px 0;color:#455166}.chapter ul,.chapter ol{margin:11px 0;padding-left:24px;color:#455166}.chapter li{margin:5px 0;padding-left:2px}.chapter li::marker{color:#929bac}.chapter blockquote{margin:17px 0;padding:13px 17px;border:1px solid #dcefe9;border-left:3px solid var(--teal);border-radius:0 9px 9px 0;background:var(--teal-wash);color:#205e57}.chapter blockquote p{margin:0;color:inherit}.chapter pre{position:relative;overflow:auto;margin:15px 0 18px;padding:18px 19px;border:1px solid #263143;border-radius:10px;background:var(--code);color:#e5eaf2;font-size:11.5px;line-height:1.75;tab-size:4;white-space:pre;box-shadow:0 3px 8px rgba(17,24,39,.045)}.chapter pre code{font-size:inherit;color:inherit;background:none;border:0;padding:0}.chapter :not(pre)>code{padding:2px 5px;border:1px solid #e6e9ef;border-radius:5px;background:#f2f4f8;color:#38465d;font-size:.88em;overflow-wrap:anywhere}.chapter table{width:100%;margin:16px 0;border-collapse:separate;border-spacing:0;border:1px solid var(--line);border-radius:9px;overflow:hidden;color:#455166;font-size:12px}.chapter th,.chapter td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.chapter tr:last-child td{border-bottom:0}.chapter th{background:#f7f8fb;color:#687387;font-size:9px;font-weight:900;letter-spacing:.07em;text-transform:uppercase}.chapter hr{height:1px;margin:24px 0;border:0;background:var(--line)}.chapter-body>p:first-child{margin-top:0}.chapter-body strong{color:#263247;font-weight:800}.chapter-body table code{white-space:nowrap}.chapter-body pre+pre{margin-top:10px}
+.checkpoint-heading{display:flex;align-items:center;gap:9px;margin:29px 0 12px!important;padding:11px 13px;border:1px solid #dcefe9;border-radius:9px;background:var(--teal-wash);color:#155e59!important;font-size:13px!important;letter-spacing:0!important}.checkpoint-label{font-size:10px;font-weight:900;letter-spacing:.09em;text-transform:uppercase}.checkpoint-number{display:grid;place-items:center;width:22px;height:22px;border-radius:6px;background:#d8f0e9;color:#0f766e;font:850 10px/1 "SFMono-Regular",Consolas,monospace}.reference-heading{display:flex;align-items:center;gap:8px;margin-top:25px!important;color:#657084!important;font-size:12px!important;letter-spacing:.015em!important}.reference-heading:before{content:"↳";color:#9aa3b2;font-size:16px}.chapter-pager{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:28px;padding-top:16px;border-top:1px solid #edf0f4}.pager-link{display:flex;flex-direction:column;gap:4px;min-width:0;padding:11px 13px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--ink);text-decoration:none;transition:border-color .15s,background .15s}.pager-link:hover{border-color:#c8c5fb;background:#fbfaff;text-decoration:none}.pager-next{text-align:right;align-items:flex-end}.pager-direction{color:#8a94a4;font-size:9px;font-weight:850;letter-spacing:.045em;text-transform:uppercase}.pager-title{max-width:100%;overflow:hidden;color:#414d62;font-size:10px;font-weight:780;text-overflow:ellipsis;white-space:nowrap}
+.copy-button{position:absolute;top:9px;right:9px;z-index:2;padding:5px 8px;border:1px solid #3b4659;border-radius:6px;background:#202b3b;color:#cbd5e1;font-size:9px;font-weight:800;cursor:pointer;opacity:0;transition:opacity .15s,background .15s}.chapter pre:hover .copy-button,.copy-button:focus{opacity:1}.copy-button:hover{background:#303d50}.copy-button.copied{border-color:#256c60;background:#164e46;color:#d1fae5}
+.footer{max-width:var(--content);margin:31px auto 0;padding:22px 3px 0;border-top:1px solid var(--line);color:#8b94a4;font-size:10px;line-height:1.8}.footer strong{color:#596579}
+@media(max-width:1200px){:root{--sidebar:252px}main{padding-left:30px;padding-right:30px}.hero{padding:32px 31px}.roadmap{grid-template-columns:repeat(3,minmax(0,1fr))}.roadmap-card{min-height:94px}}
+@media(max-width:960px){.layout{display:block}aside{display:none}.mobile-contents{display:block;position:sticky;top:65px;z-index:30;border-bottom:1px solid var(--line);background:rgba(248,249,251,.97);backdrop-filter:blur(12px)}.mobile-contents>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 21px;list-style:none;color:var(--ink);font-size:11px;font-weight:850;cursor:pointer}.mobile-contents>summary::-webkit-details-marker{display:none}.mobile-contents>summary:after{content:"＋";color:var(--accent);font-size:16px}.mobile-contents[open]>summary:after{content:"−"}.mobile-summary-meta{margin-left:auto;color:#8992a2;font-size:10px;font-weight:650}.mobile-contents-body{max-height:64vh;overflow:auto;padding:0 18px 18px;border-top:1px solid #e9ecf1}.mobile-contents-body .search-wrap{margin:12px 0}.mobile-contents-body .nav-group{margin-bottom:15px}.mobile-contents-body .nav-group ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 8px}.mobile-contents-body .chapter-nav a{height:100%;font-size:10px}.mobile-contents-body .nav-group-head{margin-top:13px}main{padding:25px 26px 60px}.hero{padding:30px}.workflow{grid-template-columns:1fr;gap:12px}.workflow-steps{justify-content:flex-start}}
+@media(max-width:600px){.topbar{height:57px;top:3px;padding:0 14px}.brand-mark{width:31px;height:31px}.brand-sub{display:none}.brand-name{font-size:11px}.topbar-context{display:none}.action-button{padding:8px 9px;font-size:10px}.mobile-contents{top:60px}.mobile-contents>summary{padding:10px 15px}.mobile-contents-body{padding-left:13px;padding-right:13px}.mobile-contents-body .nav-group ul{grid-template-columns:1fr}.mobile-contents-body .chapter-nav a{font-size:11px}.mobile-contents-body .nav-group-head{margin-top:15px}main{padding:17px 14px 45px}.hero{padding:25px 20px 20px;border-radius:13px}.hero:after{top:-145px;right:-180px}.hero h1{font-size:39px}.hero-lead{font-size:13px;line-height:1.75}.hero-bottom{align-items:flex-start}.hero-meta{gap:9px 12px}.start-link{width:100%;justify-content:center}.workflow{margin:15px 0 21px;padding:17px}.workflow-steps{gap:5px}.workflow-step{padding:6px 7px;font-size:9px}.workflow-arrow{font-size:10px}.roadmap-head{align-items:flex-start;flex-direction:column;gap:4px;margin-top:24px}.roadmap{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-bottom:25px}.roadmap-card{min-height:91px;padding:11px}.roadmap-card strong{font-size:10px}.roadmap-card:last-child{grid-column:1/-1;min-height:72px}.part-heading{margin-top:31px;gap:10px}.part-mark{flex-basis:31px;width:31px;height:31px;border-radius:8px}.part-heading-copy h2{font-size:15px}.part-range{font-size:9px}.chapter{padding:23px 1px 20px}.chapter-head{gap:11px;margin-bottom:18px}.chapter-index{flex-basis:43px;min-height:47px;border-radius:8px}.chapter-index strong{font-size:17px}.chapter h2{font-size:23px}.chapter h3{font-size:16px}.chapter p,.chapter li{font-size:13px}.chapter pre{padding:16px 13px;font-size:10px;line-height:1.65;border-radius:8px}.copy-button{opacity:1}.chapter table{font-size:11px}.chapter th,.chapter td{padding:8px}.chapter-pager{gap:7px}.pager-link{padding:9px}.pager-title{font-size:9px}.footer{margin-top:22px}}
+@media print{html{scroll-behavior:auto}body{background:#fff;font-size:10.5pt}.progress-track,.topbar,aside,.mobile-contents,.roadmap-head,.roadmap,.workflow,.chapter-pager,.copy-button,.start-link{display:none!important}.layout{display:block;max-width:none}main{padding:0}.main-inner{max-width:none}.hero{padding:22px 0;border:0;border-radius:0;box-shadow:none}.hero:after{display:none}.hero h1{font-size:32pt}.hero-lead{font-size:11pt}.hero-bottom{padding-top:10px}.roadmap-head{margin-top:0}.part-heading{break-after:avoid;margin-top:26px}.chapter{padding:20px 0;border-bottom:1px solid #bbb;break-inside:auto}.chapter-head{break-after:avoid}.chapter h3,.chapter h4{break-after:avoid}.chapter pre{white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:none;print-color-adjust:exact;-webkit-print-color-adjust:exact}.chapter blockquote,.checkpoint-heading{print-color-adjust:exact;-webkit-print-color-adjust:exact}.chapter table{break-inside:avoid}a{color:inherit;text-decoration:none}.footer{border-top:0}}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to guide content</a>
+<div class="progress-track" aria-hidden="true"><span id="progress"></span></div>
+<header class="topbar">
+  <div class="brand"><span class="brand-mark">MR</span><span class="brand-copy"><span class="brand-name">Distributed Systems</span><span class="brand-sub">MIT 6.5840 · LAB 1</span></span></div>
+  <div class="topbar-right"><span class="topbar-context">LEARNING GUIDE / MAPREDUCE</span><button type="button" class="action-button" onclick="window.print()"><span aria-hidden="true">↧</span> Print / Save PDF</button></div>
+</header>
+<details class="mobile-contents" id="mobileContents">
+  <summary><span>Contents</span><span class="mobile-summary-meta">5 parts · 29 chapters</span></summary>
+  <div class="mobile-contents-body">
+    <div class="search-wrap"><svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16 16 4 4"></path></svg><input id="mobileSearch" class="nav-search" type="search" placeholder="Search chapters…" aria-label="Search chapters"></div>
+    <nav class="chapter-nav" id="mobileNav" aria-label="Chapter contents"><div class="nav-group" data-part="1">
+          <div class="nav-group-head"><span class="nav-group-number">01</span><span>Foundations</span></div>
+          <ul>
+<li><a href="#chapter-0" data-chapter="0"><span class="nav-num">00</span><span class="nav-title">What You Are Actually Building</span></a></li>
+<li><a href="#chapter-1" data-chapter="1"><span class="nav-num">01</span><span class="nav-title">Learn Just Enough Go to Read the Starter Code</span></a></li>
+<li><a href="#chapter-2" data-chapter="2"><span class="nav-num">02</span><span class="nav-title">Understand the Lab’s Simplifications</span></a></li>
+<li><a href="#chapter-3" data-chapter="3"><span class="nav-num">03</span><span class="nav-title">Design the RPC Conversation Before Coding</span></a></li>
+</ul></div>
+<div class="nav-group" data-part="2">
+          <div class="nav-group-head"><span class="nav-group-number">02</span><span>Coordinator &amp; Map pipeline</span></div>
+          <ul>
+<li><a href="#chapter-4" data-chapter="4"><span class="nav-num">04</span><span class="nav-title">The Coordinator Needs a Task State Machine</span></a></li>
+<li><a href="#chapter-5" data-chapter="5"><span class="nav-num">05</span><span class="nav-title">Your First Distributed Feature: Assign One Map Task</span></a></li>
+<li><a href="#chapter-6" data-chapter="6"><span class="nav-num">06</span><span class="nav-title">The First Important Go Concurrency Concept: sync.Mutex</span></a></li>
+<li><a href="#chapter-7" data-chapter="7"><span class="nav-num">07</span><span class="nav-title">Execute a Map Task</span></a></li>
+<li><a href="#chapter-8" data-chapter="8"><span class="nav-num">08</span><span class="nav-title">Intermediate Files: mr-X-Y</span></a></li>
+<li><a href="#chapter-9" data-chapter="9"><span class="nav-num">09</span><span class="nav-title">Learn JSON by Storing Intermediate Data</span></a></li>
+<li><a href="#chapter-10" data-chapter="10"><span class="nav-num">10</span><span class="nav-title">Don’t Write Directly to Final Files</span></a></li>
+<li><a href="#chapter-11" data-chapter="11"><span class="nav-num">11</span><span class="nav-title">Tell the Coordinator the Map Finished</span></a></li>
+</ul></div>
+<div class="nav-group" data-part="3">
+          <div class="nav-group-head"><span class="nav-group-number">03</span><span>Reduce &amp; orchestration</span></div>
+          <ul>
+<li><a href="#chapter-12" data-chapter="12"><span class="nav-num">12</span><span class="nav-title">The Map → Reduce Barrier</span></a></li>
+<li><a href="#chapter-13" data-chapter="13"><span class="nav-num">13</span><span class="nav-title">Implement Reduce</span></a></li>
+<li><a href="#chapter-14" data-chapter="14"><span class="nav-num">14</span><span class="nav-title">Sorting in Go</span></a></li>
+<li><a href="#chapter-15" data-chapter="15"><span class="nav-num">15</span><span class="nav-title">Produce mr-out-X</span></a></li>
+<li><a href="#chapter-16" data-chapter="16"><span class="nav-num">16</span><span class="nav-title">Complete the Worker Loop</span></a></li>
+<li><a href="#chapter-17" data-chapter="17"><span class="nav-num">17</span><span class="nav-title">Know When the Job Is Finished</span></a></li>
+</ul></div>
+<div class="nav-group" data-part="4">
+          <div class="nav-group-head"><span class="nav-group-number">04</span><span>Fault tolerance</span></div>
+          <ul>
+<li><a href="#chapter-18" data-chapter="18"><span class="nav-num">18</span><span class="nav-title">The Distributed-Systems Part: Worker Failure</span></a></li>
+<li><a href="#chapter-19" data-chapter="19"><span class="nav-num">19</span><span class="nav-title">Timeouts</span></a></li>
+<li><a href="#chapter-20" data-chapter="20"><span class="nav-num">20</span><span class="nav-title">The Old Worker Might Not Actually Be Dead</span></a></li>
+<li><a href="#chapter-21" data-chapter="21"><span class="nav-num">21</span><span class="nav-title">A Nice Improvement: Attempt Numbers</span></a></li>
+<li><a href="#chapter-22" data-chapter="22"><span class="nav-num">22</span><span class="nav-title">Why Atomic Rename and Attempt IDs Solve Different Problems</span></a></li>
+<li><a href="#chapter-23" data-chapter="23"><span class="nav-num">23</span><span class="nav-title">Fix call() So Workers Can Exit Cleanly</span></a></li>
+</ul></div>
+<div class="nav-group" data-part="5">
+          <div class="nav-group-head"><span class="nav-group-number">05</span><span>Review &amp; implementation</span></div>
+          <ul>
+<li><a href="#chapter-24" data-chapter="24"><span class="nav-num">24</span><span class="nav-title">Your Finished Architecture</span></a></li>
+<li><a href="#chapter-25" data-chapter="25"><span class="nav-num">25</span><span class="nav-title">The Go You Will Have Learned Along the Way</span></a></li>
+<li><a href="#chapter-26" data-chapter="26"><span class="nav-num">26</span><span class="nav-title">Test in This Order</span></a></li>
+<li><a href="#chapter-27" data-chapter="27"><span class="nav-num">27</span><span class="nav-title">Your Actual Implementation Order</span></a></li>
+<li><a href="#chapter-28" data-chapter="28"><span class="nav-num">28</span><span class="nav-title">The Five Questions You Should Be Able to Answer at the End</span></a></li>
+</ul></div></nav><p class="empty-search" id="mobileEmpty">No matching chapters.</p>
+  </div>
+</details>
+<div class="layout">
+<aside aria-label="Chapter navigation">
+  <div class="sidebar-top"><span class="sidebar-title">On this page</span><span class="sidebar-count">29 CHAPTERS</span></div>
+  <div class="search-wrap"><svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16 16 4 4"></path></svg><input id="desktopSearch" class="nav-search" type="search" placeholder="Search chapters…" aria-label="Search chapters"></div>
+  <nav class="chapter-nav" id="desktopNav" aria-label="Chapter contents"><div class="nav-group" data-part="1">
+          <div class="nav-group-head"><span class="nav-group-number">01</span><span>Foundations</span></div>
+          <ul>
+<li><a href="#chapter-0" data-chapter="0"><span class="nav-num">00</span><span class="nav-title">What You Are Actually Building</span></a></li>
+<li><a href="#chapter-1" data-chapter="1"><span class="nav-num">01</span><span class="nav-title">Learn Just Enough Go to Read the Starter Code</span></a></li>
+<li><a href="#chapter-2" data-chapter="2"><span class="nav-num">02</span><span class="nav-title">Understand the Lab’s Simplifications</span></a></li>
+<li><a href="#chapter-3" data-chapter="3"><span class="nav-num">03</span><span class="nav-title">Design the RPC Conversation Before Coding</span></a></li>
+</ul></div>
+<div class="nav-group" data-part="2">
+          <div class="nav-group-head"><span class="nav-group-number">02</span><span>Coordinator &amp; Map pipeline</span></div>
+          <ul>
+<li><a href="#chapter-4" data-chapter="4"><span class="nav-num">04</span><span class="nav-title">The Coordinator Needs a Task State Machine</span></a></li>
+<li><a href="#chapter-5" data-chapter="5"><span class="nav-num">05</span><span class="nav-title">Your First Distributed Feature: Assign One Map Task</span></a></li>
+<li><a href="#chapter-6" data-chapter="6"><span class="nav-num">06</span><span class="nav-title">The First Important Go Concurrency Concept: sync.Mutex</span></a></li>
+<li><a href="#chapter-7" data-chapter="7"><span class="nav-num">07</span><span class="nav-title">Execute a Map Task</span></a></li>
+<li><a href="#chapter-8" data-chapter="8"><span class="nav-num">08</span><span class="nav-title">Intermediate Files: mr-X-Y</span></a></li>
+<li><a href="#chapter-9" data-chapter="9"><span class="nav-num">09</span><span class="nav-title">Learn JSON by Storing Intermediate Data</span></a></li>
+<li><a href="#chapter-10" data-chapter="10"><span class="nav-num">10</span><span class="nav-title">Don’t Write Directly to Final Files</span></a></li>
+<li><a href="#chapter-11" data-chapter="11"><span class="nav-num">11</span><span class="nav-title">Tell the Coordinator the Map Finished</span></a></li>
+</ul></div>
+<div class="nav-group" data-part="3">
+          <div class="nav-group-head"><span class="nav-group-number">03</span><span>Reduce &amp; orchestration</span></div>
+          <ul>
+<li><a href="#chapter-12" data-chapter="12"><span class="nav-num">12</span><span class="nav-title">The Map → Reduce Barrier</span></a></li>
+<li><a href="#chapter-13" data-chapter="13"><span class="nav-num">13</span><span class="nav-title">Implement Reduce</span></a></li>
+<li><a href="#chapter-14" data-chapter="14"><span class="nav-num">14</span><span class="nav-title">Sorting in Go</span></a></li>
+<li><a href="#chapter-15" data-chapter="15"><span class="nav-num">15</span><span class="nav-title">Produce mr-out-X</span></a></li>
+<li><a href="#chapter-16" data-chapter="16"><span class="nav-num">16</span><span class="nav-title">Complete the Worker Loop</span></a></li>
+<li><a href="#chapter-17" data-chapter="17"><span class="nav-num">17</span><span class="nav-title">Know When the Job Is Finished</span></a></li>
+</ul></div>
+<div class="nav-group" data-part="4">
+          <div class="nav-group-head"><span class="nav-group-number">04</span><span>Fault tolerance</span></div>
+          <ul>
+<li><a href="#chapter-18" data-chapter="18"><span class="nav-num">18</span><span class="nav-title">The Distributed-Systems Part: Worker Failure</span></a></li>
+<li><a href="#chapter-19" data-chapter="19"><span class="nav-num">19</span><span class="nav-title">Timeouts</span></a></li>
+<li><a href="#chapter-20" data-chapter="20"><span class="nav-num">20</span><span class="nav-title">The Old Worker Might Not Actually Be Dead</span></a></li>
+<li><a href="#chapter-21" data-chapter="21"><span class="nav-num">21</span><span class="nav-title">A Nice Improvement: Attempt Numbers</span></a></li>
+<li><a href="#chapter-22" data-chapter="22"><span class="nav-num">22</span><span class="nav-title">Why Atomic Rename and Attempt IDs Solve Different Problems</span></a></li>
+<li><a href="#chapter-23" data-chapter="23"><span class="nav-num">23</span><span class="nav-title">Fix call() So Workers Can Exit Cleanly</span></a></li>
+</ul></div>
+<div class="nav-group" data-part="5">
+          <div class="nav-group-head"><span class="nav-group-number">05</span><span>Review &amp; implementation</span></div>
+          <ul>
+<li><a href="#chapter-24" data-chapter="24"><span class="nav-num">24</span><span class="nav-title">Your Finished Architecture</span></a></li>
+<li><a href="#chapter-25" data-chapter="25"><span class="nav-num">25</span><span class="nav-title">The Go You Will Have Learned Along the Way</span></a></li>
+<li><a href="#chapter-26" data-chapter="26"><span class="nav-num">26</span><span class="nav-title">Test in This Order</span></a></li>
+<li><a href="#chapter-27" data-chapter="27"><span class="nav-num">27</span><span class="nav-title">Your Actual Implementation Order</span></a></li>
+<li><a href="#chapter-28" data-chapter="28"><span class="nav-num">28</span><span class="nav-title">The Five Questions You Should Be Able to Answer at the End</span></a></li>
+</ul></div></nav><p class="empty-search" id="desktopEmpty">No matching chapters.</p>
+  <div class="sidebar-foot"><strong>MIT 6.5840 · Lab 1</strong><br>Read a chapter, stop at the checkpoint, then implement.</div>
+</aside>
+<main id="main-content"><div class="main-inner" id="top">
+  <header class="hero">
+    <div class="hero-topline"><span class="eyebrow"><span class="eyebrow-dot"></span> MIT 6.5840 / LAB 1</span></div>
+    <h1>Build MapReduce in Go</h1>
+    <p class="hero-lead">A chapter-by-chapter guide for learning Go by implementing the MapReduce lab. Start with the system model, build the coordinator and worker pipeline, then handle failures and validate the finished architecture.</p>
+    <div class="hero-bottom"><div class="hero-meta"><span><span class="meta-dot"></span> 29 chapters</span><span><span class="meta-dot"></span> 5 parts</span><span><span class="meta-dot"></span> Learn by implementing</span></div><a class="start-link" href="#chapter-0">Start with Chapter 00 <span aria-hidden="true">→</span></a></div>
+  </header>
+  <section class="workflow" aria-label="How to use this guide">
+    <div><p class="workflow-label">How to use this guide</p><h2>Understand one piece, then build it.</h2><p class="workflow-copy">Each chapter explains one idea and includes a <strong>YOUR TURN</strong> checkpoint. Stop there and try it yourself before using the reference snippet. The goal is to understand the system, not to paste a complete solution.</p></div>
+    <div class="workflow-steps" aria-label="Worker task cycle"><span class="workflow-step">Request</span><span class="workflow-arrow">→</span><span class="workflow-step">Execute</span><span class="workflow-arrow">→</span><span class="workflow-step">Write files</span><span class="workflow-arrow">→</span><span class="workflow-step">Report done</span></div>
+  </section>
+  <div class="roadmap-head"><div><p class="section-overline">The learning path</p><h2>Five parts, from first principles to failure recovery</h2></div><span class="roadmap-note">Choose a part to jump ahead</span></div>
+  <nav class="roadmap" aria-label="Learning path"><a class="roadmap-card" href="#part-1"><span class="roadmap-card-top"><span class="roadmap-number">01</span><span class="roadmap-range">00–03</span></span><strong>Foundations</strong><small>Chapters 00–03</small></a>
+<a class="roadmap-card" href="#part-2"><span class="roadmap-card-top"><span class="roadmap-number">02</span><span class="roadmap-range">04–11</span></span><strong>Coordinator &amp; Map pipeline</strong><small>Chapters 04–11</small></a>
+<a class="roadmap-card" href="#part-3"><span class="roadmap-card-top"><span class="roadmap-number">03</span><span class="roadmap-range">12–17</span></span><strong>Reduce &amp; orchestration</strong><small>Chapters 12–17</small></a>
+<a class="roadmap-card" href="#part-4"><span class="roadmap-card-top"><span class="roadmap-number">04</span><span class="roadmap-range">18–23</span></span><strong>Fault tolerance</strong><small>Chapters 18–23</small></a>
+<a class="roadmap-card" href="#part-5"><span class="roadmap-card-top"><span class="roadmap-number">05</span><span class="roadmap-range">24–28</span></span><strong>Review &amp; implementation</strong><small>Chapters 24–28</small></a></nav>
+  <div class="content"><div class="part-heading" id="part-1">
+          <div class="part-mark">01</div>
+          <div class="part-heading-copy"><p>PART 01</p><h2>Foundations</h2></div>
+          <span class="part-range">Chapters 00–03</span>
+        </div>
+<section class="chapter" id="chapter-0" data-chapter="0">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>00</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 01 · Foundations</p><h2>What You Are Actually Building</h2></div>
+      </header>
+      <div class="chapter-body"><p>Forget Go for a moment. Your system will look like this:</p>
+<pre><code class="language-text">                       COORDINATOR
+                    &quot;Who should do what?&quot;
+                    /       |       \\
+                   / RPC    | RPC    \\ RPC
+                  v         v         v
+
+              Worker 1   Worker 2   Worker 3
+                  |          |          |
+               Map/Reduce Map/Reduce Map/Reduce
+                  \\          |          /
+                   \\         |         /
+                      shared files
+</code></pre>
+<p>The coordinator <strong>does not do MapReduce computation</strong>. It decides who should do what and tracks progress. Workers do the actual computation.</p>
+<pre><code class="language-text">Map task 0 -&gt; worker A
+Map task 1 -&gt; worker B
+Map task 2 -&gt; worker C
+
+worker B finished map 1
+
+Map task 3 -&gt; worker B
+</code></pre>
+<p>Workers repeatedly ask the coordinator for a task, receive it, execute it, write files, report completion, and ask again.</p>
+<pre><code class="language-text">ask coordinator for task
+        ↓
+receive task
+        ↓
+execute it
+        ↓
+write files
+        ↓
+tell coordinator &quot;done&quot;
+        ↓
+ask again
+</code></pre>
+<p>There are two communication paths:</p>
+<ul>
+<li><strong>Coordinator ↔ Workers through RPC:</strong> mostly the <em>control plane</em>.</li>
+<li><strong>Workers ↔ Shared filesystem:</strong> the <em>data plane</em>.</li>
+</ul>
+<p>That distinction is important.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#top"><span class="pager-direction">↑ Start</span><span class="pager-title">Guide overview</span></a><a class="pager-link pager-next" href="#chapter-1"><span class="pager-direction">Next chapter →</span><span class="pager-title">Learn Just Enough Go to Read the Starter Code</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-1" data-chapter="1">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>01</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 01 · Foundations</p><h2>Learn Just Enough Go to Read the Starter Code</h2></div>
+      </header>
+      <div class="chapter-body"><p>Do <strong>not</strong> learn all of Go first. Start with the concepts you need to understand the lab.</p>
+<h3>Function declarations</h3>
+<pre><code class="language-go">func Map(filename string, contents string) []mr.KeyValue {
+    kva := []mr.KeyValue{}
+
+    kv := mr.KeyValue{&quot;hello&quot;, &quot;1&quot;}
+    kva = append(kva, kv)
+
+    return kva
+}
+</code></pre>
+<p>This is roughly equivalent to Python’s <code>def Map(filename: str, contents: str) -&gt; list[KeyValue]</code>. Go puts the type <strong>after</strong> the variable name: <code>filename string</code>.</p>
+<h3><code>:=</code> declares a variable</h3>
+<pre><code class="language-go">x := 5
+</code></pre>
+<p>This declares a new variable and infers its type, roughly like <code>x = 5</code> in Python. You could explicitly write <code>var x int = 5</code>, but Go programmers commonly use <code>:=</code>.</p>
+<h3>Structs</h3>
+<pre><code class="language-go">type KeyValue struct {
+    Key   string
+    Value string
+}
+</code></pre>
+<p>Think of this like a Python dataclass with <code>Key</code> and <code>Value</code> fields. Create one with named fields when learning:</p>
+<pre><code class="language-go">kv := KeyValue{
+    Key: &quot;cat&quot;,
+    Value: &quot;1&quot;,
+}
+</code></pre>
+<h3>Slices</h3>
+<pre><code class="language-go">values := []string{}
+values = append(values, &quot;hello&quot;)
+</code></pre>
+<p>Think of <code>[]string</code> as a list of strings. Go uses <code>append(values, &quot;hello&quot;)</code> rather than Python’s <code>values.append(&quot;hello&quot;)</code>.</p>
+<h3>Loops</h3>
+<pre><code class="language-go">for _, kv := range kva {
+    fmt.Println(kv.Key)
+}
+</code></pre>
+<p>This is roughly like <code>for kv in kva:</code> in Python. The underscore means “I don’t care about this value.” <code>range</code> can provide both index and value:</p>
+<pre><code class="language-go">for i, kv := range kva {
+</code></pre>
+<h3>Errors</h3>
+<pre><code class="language-go">data, err := os.ReadFile(filename)
+
+if err != nil {
+    log.Fatal(err)
+}
+</code></pre>
+<p>Go normally checks returned errors explicitly, rather than using Python’s <code>try/except</code> for every operation.</p>
+<h3 class="checkpoint-heading"><span class="checkpoint-label">Your turn</span><span class="checkpoint-number">01</span></h3>
+<p>Before doing anything distributed, open these files:</p>
+<ul>
+<li><code>main/mrsequential.go</code></li>
+<li><code>mrapps/wc.go</code></li>
+<li><code>mr/worker.go</code></li>
+</ul>
+<p>Answer these yourself:</p>
+<ol>
+<li>What arguments does <code>Map()</code> receive?</li>
+<li>What does <code>Map()</code> return?</li>
+<li>What arguments does <code>Reduce()</code> receive?</li>
+<li>What does <code>Reduce()</code> return?</li>
+<li>What is a <code>KeyValue</code>?</li>
+<li>Where does <code>mapf</code> come from inside <code>Worker()</code>?</li>
+</ol>
+<p>Then run the sequential implementation exactly as the lab describes. Don’t continue until you can explain:</p>
+<pre><code class="language-text">file → Map() → []KeyValue → sort/group → Reduce() → mr-out-0
+</code></pre>
+<h3 class="reference-heading">Reference: the function types</h3>
+<pre><code class="language-go">mapf func(string, string) []KeyValue
+
+reducef func(string, []string) string
+</code></pre>
+<p>The worker doesn’t load these functions itself. <code>main/mrworker.go</code> loads the <code>.so</code> plugin and passes the functions into <code>Worker(sockname, mapf, reducef)</code>. For now, you don’t need to worry about how Go plugins work.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-0"><span class="pager-direction">← Previous</span><span class="pager-title">What You Are Actually Building</span></a><a class="pager-link pager-next" href="#chapter-2"><span class="pager-direction">Next chapter →</span><span class="pager-title">Understand the Lab’s Simplifications</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-2" data-chapter="2">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>02</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 01 · Foundations</p><h2>Understand the Lab’s Simplifications</h2></div>
+      </header>
+      <div class="chapter-body"><p>The original MapReduce paper had arbitrary input splits and machines distributed across a cluster. This lab simplifies that:</p>
+<blockquote>
+<p><strong>Here, one input file = one Map task.</strong></p>
+</blockquote>
+<p>The starter repo has eight <code>pg-*.txt</code> input files, so normally there are eight Map tasks. The number of workers is separate from the number of tasks.</p>
+<pre><code class="language-text">8 map tasks
+3 worker processes
+10 reduce tasks
+</code></pre>
+<p>One worker might execute Map 0, then Map 4, then Reduce 2, then Reduce 8 over its lifetime.</p>
+<blockquote>
+<p><strong>TASK ≠ WORKER</strong></p>
+<p>A worker is a reusable executor. A task is one piece of work.</p>
+</blockquote>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-1"><span class="pager-direction">← Previous</span><span class="pager-title">Learn Just Enough Go to Read the Starter Code</span></a><a class="pager-link pager-next" href="#chapter-3"><span class="pager-direction">Next chapter →</span><span class="pager-title">Design the RPC Conversation Before Coding</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-3" data-chapter="3">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>03</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 01 · Foundations</p><h2>Design the RPC Conversation Before Coding</h2></div>
+      </header>
+      <div class="chapter-body"><p>Eventually, workers and the coordinator need a simple conversation:</p>
+<pre><code class="language-text">Worker: &quot;Give me something to do.&quot;
+Coordinator: &quot;Run Map task 3 on pg-frankenstein.txt. There are 10 reducers.&quot;
+Worker: &quot;Okay.&quot;
+
+Worker: &quot;Map task 3 finished.&quot;
+Coordinator: &quot;Okay.&quot;
+
+Worker: &quot;Give me something.&quot;
+Coordinator: &quot;Nothing currently available. Wait.&quot;
+
+Coordinator: &quot;Job is finished. Exit.&quot;
+</code></pre>
+<p>Use four task types:</p>
+<pre><code class="language-text">MapTask
+ReduceTask
+WaitTask
+ExitTask
+</code></pre>
+<p>Go’s <code>iota</code> makes it convenient to assign consecutive integer values:</p>
+<pre><code class="language-go">type TaskType int
+
+const (
+    MapTask TaskType = iota
+    ReduceTask
+    WaitTask
+    ExitTask
+)
+</code></pre>
+<p>These become 0, 1, 2, and 3, respectively.</p>
+<h3 class="checkpoint-heading"><span class="checkpoint-label">Your turn</span><span class="checkpoint-number">02</span></h3>
+<p>Open <code>mr/rpc.go</code> and design two RPCs: <code>RequestTask</code> and <code>ReportTaskDone</code>. Decide what information a worker needs from <code>RequestTask</code>.</p>
+<p>For a Map task, the worker needs at least:</p>
+<ul>
+<li>task ID</li>
+<li>filename</li>
+<li>number of reducers</li>
+</ul>
+<p>For Reduce:</p>
+<ul>
+<li>reduce task ID</li>
+<li>number of map tasks</li>
+</ul>
+<h3 class="reference-heading">Reference: a reasonable starting shape</h3>
+<pre><code class="language-go">type RequestTaskArgs struct {
+}
+
+type RequestTaskReply struct {
+    Type     TaskType
+    TaskID   int
+    Filename string
+    NReduce  int
+    NMap     int
+}
+
+type ReportTaskArgs struct {
+    Type   TaskType
+    TaskID int
+}
+
+type ReportTaskReply struct {
+}
+</code></pre>
+<p><strong>Subtle Go / RPC detail:</strong> <code>TaskID</code> is visible through RPC; <code>taskID</code> is not. Go’s RPC system only transmits exported fields, which begin with a capital letter.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-2"><span class="pager-direction">← Previous</span><span class="pager-title">Understand the Lab’s Simplifications</span></a><a class="pager-link pager-next" href="#chapter-4"><span class="pager-direction">Next chapter →</span><span class="pager-title">The Coordinator Needs a Task State Machine</span></a></nav>
+    </section>
+<div class="part-heading" id="part-2">
+          <div class="part-mark">02</div>
+          <div class="part-heading-copy"><p>PART 02</p><h2>Coordinator &amp; Map pipeline</h2></div>
+          <span class="part-range">Chapters 04–11</span>
+        </div>
+<section class="chapter" id="chapter-4" data-chapter="4">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>04</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 02 · Coordinator &amp; Map pipeline</p><h2>The Coordinator Needs a Task State Machine</h2></div>
+      </header>
+      <div class="chapter-body"><p>The coordinator needs to remember whether every task is idle, in progress, or done.</p>
+<pre><code class="language-text">Idle ── assigned ──→ InProgress ── worker finishes ──→ Done
+                           │
+                           └── timeout ──→ Idle
+</code></pre>
+<p>A useful Go struct might be:</p>
+<pre><code class="language-go">type Task struct {
+    ID       int
+    Filename string
+    State    TaskState
+    Started  time.Time
+}
+</code></pre>
+<p>And the state type:</p>
+<pre><code class="language-go">type TaskState int
+
+const (
+    Idle TaskState = iota
+    InProgress
+    Completed
+)
+</code></pre>
+<p>The coordinator needs collections of tasks:</p>
+<pre><code class="language-go">type Coordinator struct {
+    mapTasks    []Task
+    reduceTasks []Task
+
+    nReduce int
+}
+</code></pre>
+<h3 class="checkpoint-heading"><span class="checkpoint-label">Your turn</span><span class="checkpoint-number">03</span></h3>
+<p>Implement only <code>MakeCoordinator()</code>. Don’t schedule anything yet. Given:</p>
+<pre><code class="language-go">func MakeCoordinator(sockname string, files []string, nReduce int) *Coordinator
+</code></pre>
+<p>initialize one Map task per input file and <code>nReduce</code> Reduce tasks.</p>
+<h3 class="reference-heading">Reference: initialize Map tasks</h3>
+<pre><code class="language-go">for i, filename := range files {
+    task := Task{
+        ID:       i,
+        Filename: filename,
+        State:    Idle,
+    }
+
+    c.mapTasks = append(c.mapTasks, task)
+}
+</code></pre>
+<p>For reducers:</p>
+<pre><code class="language-go">for i := 0; i &lt; nReduce; i++ {
+    c.reduceTasks = append(c.reduceTasks, Task{
+        ID:    i,
+        State: Idle,
+    })
+}
+</code></pre>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-3"><span class="pager-direction">← Previous</span><span class="pager-title">Design the RPC Conversation Before Coding</span></a><a class="pager-link pager-next" href="#chapter-5"><span class="pager-direction">Next chapter →</span><span class="pager-title">Your First Distributed Feature: Assign One Map Task</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-5" data-chapter="5">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>05</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 02 · Coordinator &amp; Map pipeline</p><h2>Your First Distributed Feature: Assign One Map Task</h2></div>
+      </header>
+      <div class="chapter-body"><p>Implement the path from worker to coordinator through an RPC. The coordinator finds an idle Map task, marks it in progress, records when it started, and returns it.</p>
+<pre><code class="language-text">Before:
+Map 0 Idle
+Map 1 Idle
+Map 2 Idle
+
+Worker A requests
+
+After:
+Map 0 InProgress
+Map 1 Idle
+Map 2 Idle
+
+Reply: Map task 0
+</code></pre>
+<h3 class="checkpoint-heading"><span class="checkpoint-label">Your turn</span><span class="checkpoint-number">04</span></h3>
+<p>Implement a coordinator RPC handler like this. For now, only assign Map tasks. If no idle Map task exists, return <code>WaitTask</code>. Then modify <code>Worker()</code> so it calls <code>RequestTask</code> and prints what it receives. Don’t execute the Map yet. Start a coordinator and two workers; verify they receive different tasks.</p>
+<pre><code class="language-go">func (c *Coordinator) RequestTask(
+    args *RequestTaskArgs,
+    reply *RequestTaskReply,
+) error
+</code></pre>
+<h3 class="reference-heading">Reference idea</h3>
+<pre><code class="language-go">for i := range c.mapTasks {
+    if c.mapTasks[i].State == Idle {
+        c.mapTasks[i].State = InProgress
+        c.mapTasks[i].Started = time.Now()
+
+        reply.Type = MapTask
+        reply.TaskID = c.mapTasks[i].ID
+        reply.Filename = c.mapTasks[i].Filename
+        reply.NReduce = c.nReduce
+
+        return nil
+    }
+}
+
+reply.Type = WaitTask
+</code></pre>
+<p>Notice <code>for i := range c.mapTasks</code> rather than <code>for _, task := range c.mapTasks</code>. We want to modify the actual element using <code>c.mapTasks[i].State = InProgress</code>.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-4"><span class="pager-direction">← Previous</span><span class="pager-title">The Coordinator Needs a Task State Machine</span></a><a class="pager-link pager-next" href="#chapter-6"><span class="pager-direction">Next chapter →</span><span class="pager-title">The First Important Go Concurrency Concept: sync.Mutex</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-6" data-chapter="6">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>06</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 02 · Coordinator &amp; Map pipeline</p><h2>The First Important Go Concurrency Concept: <code>sync.Mutex</code></h2></div>
+      </header>
+      <div class="chapter-body"><p>Multiple worker processes can make RPCs at the same time. Without protection, two handlers could both observe Map 0 as idle and both assign it.</p>
+<p>Add this to <code>Coordinator</code>:</p>
+<pre><code class="language-go">mu sync.Mutex
+</code></pre>
+<p>Then use:</p>
+<pre><code class="language-go">c.mu.Lock()
+defer c.mu.Unlock()
+</code></pre>
+<p><code>defer</code> means “execute this when the current function returns.” So the lock is acquired now and released before the function returns, no matter which return path is taken.</p>
+<h3 class="checkpoint-heading"><span class="checkpoint-label">Your turn</span><span class="checkpoint-number">05</span></h3>
+<p>Protect <code>RequestTask()</code>, <code>ReportTaskDone()</code>, and <code>Done()</code> with the mutex. Then ask yourself: why should the coordinator <strong>not</strong> hold this mutex while a worker is processing an entire file?</p>
+<p><strong>Answer:</strong> If Worker A gets Map 0 and the coordinator holds the lock for five seconds, Worker B’s request may wait five seconds. That destroys parallelism. The coordinator lock protects metadata operations, which should be short. Map and Reduce computation happens outside the coordinator.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-5"><span class="pager-direction">← Previous</span><span class="pager-title">Your First Distributed Feature: Assign One Map Task</span></a><a class="pager-link pager-next" href="#chapter-7"><span class="pager-direction">Next chapter →</span><span class="pager-title">Execute a Map Task</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-7" data-chapter="7">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>07</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 02 · Coordinator &amp; Map pipeline</p><h2>Execute a Map Task</h2></div>
+      </header>
+      <div class="chapter-body"><p>Suppose Map task 3 is assigned <code>pg-frankenstein.txt</code>. The worker reads the file, calls <code>mapf(filename, contents)</code>, receives a slice of <code>KeyValue</code> pairs, and partitions them into <code>nReduce</code> buckets.</p>
+<pre><code class="language-text">read file
+   ↓
+call mapf(filename, contents)
+   ↓
+receive []KeyValue
+   ↓
+partition into nReduce buckets
+</code></pre>
+<p>The lab’s helper <code>ihash(key)</code> gives you the partitioning rule:</p>
+<pre><code class="language-go">reduceID := ihash(kv.Key) % nReduce
+</code></pre>
+<p>If <code>nReduce = 3</code>, you create buckets 0, 1, and 2. A slice of buckets, where each bucket is itself a slice of <code>KeyValue</code>, has type <code>[][]KeyValue</code>. Think of it as a list of lists.</p>
+<pre><code class="language-go">buckets := make([][]KeyValue, nReduce)
+
+for _, kv := range kva {
+    r := ihash(kv.Key) % nReduce
+    buckets[r] = append(buckets[r], kv)
+}
+</code></pre>
+<h3 class="checkpoint-heading"><span class="checkpoint-label">Your turn</span><span class="checkpoint-number">06</span></h3>
+<p>Write a helper like <code>doMapTask(...)</code>. It should use <code>os.ReadFile()</code>, call <code>mapf</code>, create the buckets, and partition every <code>KeyValue</code>. For now, just print how many values ended up in each bucket. Don’t write intermediate files yet.</p>
+<h3>Checkpoint example</h3>
+<p>If Map returns <code>cat 1</code>, <code>dog 1</code>, <code>cat 1</code>, <code>bird 1</code>, and hashing gives <code>cat → 0</code>, <code>dog → 1</code>, <code>bird → 0</code>, then bucket 0 contains both cats and bird, while bucket 1 contains dog.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-6"><span class="pager-direction">← Previous</span><span class="pager-title">The First Important Go Concurrency Concept: sync.Mutex</span></a><a class="pager-link pager-next" href="#chapter-8"><span class="pager-direction">Next chapter →</span><span class="pager-title">Intermediate Files: mr-X-Y</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-8" data-chapter="8">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>08</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 02 · Coordinator &amp; Map pipeline</p><h2>Intermediate Files: <code>mr-X-Y</code></h2></div>
+      </header>
+      <div class="chapter-body"><p>Each bucket needs to survive after the Map worker finishes. The lab’s naming pattern is:</p>
+<pre><code class="language-text">mr-X-Y
+</code></pre>
+<p>Here, <code>X</code> is the Map task number and <code>Y</code> is the Reduce task number. Map task 3 with three reducers creates:</p>
+<pre><code class="language-text">mr-3-0
+mr-3-1
+mr-3-2
+</code></pre>
+<p>Later, Reduce task 1 knows it must read <code>mr-0-1</code>, <code>mr-1-1</code>, <code>mr-2-1</code>, <code>mr-3-1</code>, and so on.</p>
+<pre><code class="language-text">                 Reduce 0       Reduce 1       Reduce 2
+
+Map 0             mr-0-0        mr-0-1        mr-0-2
+Map 1             mr-1-0        mr-1-1        mr-1-2
+Map 2             mr-2-0        mr-2-1        mr-2-2
+</code></pre>
+<p>This deterministic naming is why this lab’s coordinator doesn’t need the complicated intermediate-location metadata from Google’s original paper. All workers share the same filesystem.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-7"><span class="pager-direction">← Previous</span><span class="pager-title">Execute a Map Task</span></a><a class="pager-link pager-next" href="#chapter-9"><span class="pager-direction">Next chapter →</span><span class="pager-title">Learn JSON by Storing Intermediate Data</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-9" data-chapter="9">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>09</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 02 · Coordinator &amp; Map pipeline</p><h2>Learn JSON by Storing Intermediate Data</h2></div>
+      </header>
+      <div class="chapter-body"><p>Use Go’s <code>encoding/json</code> rather than inventing a custom text format.</p>
+<h3>Writing</h3>
+<pre><code class="language-go">enc := json.NewEncoder(file)
+
+for _, kv := range bucket {
+    err := enc.Encode(&amp;kv)
+    if err != nil {
+        // handle error
+    }
+}
+</code></pre>
+<p>Reading later:</p>
+<pre><code class="language-go">dec := json.NewDecoder(file)
+
+for {
+    var kv KeyValue
+
+    err := dec.Decode(&amp;kv)
+    if err != nil {
+        break
+    }
+
+    intermediate = append(intermediate, kv)
+}
+</code></pre>
+<p>Each struct becomes JSON like:</p>
+<pre><code class="language-json">{&quot;Key&quot;:&quot;cat&quot;,&quot;Value&quot;:&quot;1&quot;}
+</code></pre>
+<h3 class="checkpoint-heading"><span class="checkpoint-label">Your turn</span><span class="checkpoint-number">07</span></h3>
+<p>Extend <code>doMapTask()</code>. For every reduce bucket <code>r</code>, write <code>mr-mapTaskID-r</code> using JSON. Then inspect the files manually with <code>cat mr-0-0</code>. Make sure you understand their contents before moving on.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-8"><span class="pager-direction">← Previous</span><span class="pager-title">Intermediate Files: mr-X-Y</span></a><a class="pager-link pager-next" href="#chapter-10"><span class="pager-direction">Next chapter →</span><span class="pager-title">Don’t Write Directly to Final Files</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-10" data-chapter="10">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>10</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 02 · Coordinator &amp; Map pipeline</p><h2>Don’t Write Directly to Final Files</h2></div>
+      </header>
+      <div class="chapter-body"><p>Imagine a worker starts writing <code>mr-3-2</code>, writes 50% of it, and crashes. Another process might open the file and see half a JSON stream.</p>
+<p>Instead, write to a temporary file and only publish it when it is complete:</p>
+<pre><code class="language-text">temporary file
+      ↓
+write everything
+      ↓
+close
+      ↓
+atomic rename
+      ↓
+mr-3-2
+</code></pre>
+<p>Go provides:</p>
+<pre><code class="language-go">tmp, err := os.CreateTemp(&quot;.&quot;, &quot;mr-tmp-*&quot;)
+</code></pre>
+<p>The <code>&quot;.&quot;</code> places the temporary file in the same directory, so <code>os.Rename()</code> can rename it on the same filesystem. Then:</p>
+<pre><code class="language-go">os.Rename(tmp.Name(), finalName)
+</code></pre>
+<h3 class="checkpoint-heading"><span class="checkpoint-label">Your turn</span><span class="checkpoint-number">08</span></h3>
+<p>Change the Map output code from directly creating <code>mr-3-2</code> to using <code>CreateTemp</code>, writing JSON, closing the file, and renaming it. This is your first taste of writing crash-safe systems code.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-9"><span class="pager-direction">← Previous</span><span class="pager-title">Learn JSON by Storing Intermediate Data</span></a><a class="pager-link pager-next" href="#chapter-11"><span class="pager-direction">Next chapter →</span><span class="pager-title">Tell the Coordinator the Map Finished</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-11" data-chapter="11">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>11</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 02 · Coordinator &amp; Map pipeline</p><h2>Tell the Coordinator the Map Finished</h2></div>
+      </header>
+      <div class="chapter-body"><p>Until now, the coordinator still thinks Map 3 is in progress even after the worker has finished. Add a <code>ReportTaskDone</code> RPC.</p>
+<pre><code class="language-text">Worker executes Map 3
+        ↓
+write all intermediate files successfully
+        ↓
+ReportTaskDone(Map, 3)
+
+Coordinator:
+Map 3 → Completed
+</code></pre>
+<p><strong>Ordering matters.</strong> Wrong: tell the coordinator the task is done, then write files. The coordinator might start Reduce even though the files do not exist. Correct: write and rename all files, then report completion.</p>
+<h3 class="checkpoint-heading"><span class="checkpoint-label">Your turn</span><span class="checkpoint-number">09</span></h3>
+<p>Wire this up. Your worker loop should request a task, execute and report it if it is a Map task, and then request another task. At this point, you should be able to complete all Map tasks with multiple workers.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-10"><span class="pager-direction">← Previous</span><span class="pager-title">Don’t Write Directly to Final Files</span></a><a class="pager-link pager-next" href="#chapter-12"><span class="pager-direction">Next chapter →</span><span class="pager-title">The Map → Reduce Barrier</span></a></nav>
+    </section>
+<div class="part-heading" id="part-3">
+          <div class="part-mark">03</div>
+          <div class="part-heading-copy"><p>PART 03</p><h2>Reduce &amp; orchestration</h2></div>
+          <span class="part-range">Chapters 12–17</span>
+        </div>
+<section class="chapter" id="chapter-12" data-chapter="12">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>12</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 03 · Reduce &amp; orchestration</p><h2>The Map → Reduce Barrier</h2></div>
+      </header>
+      <div class="chapter-body"><p>A Reduce task cannot safely run if some Map tasks have not produced their intermediate partitions. This lab uses a simple barrier: reducers wait until the last Map has finished.</p>
+<pre><code class="language-text">MAP PHASE
+
+Map 0 Done
+Map 1 Done
+Map 2 Running
+Map 3 Done
+
+             STOP
+      no reducers yet
+</code></pre>
+<p>When Map 2 completes, all Maps are complete and the Reduce phase can begin.</p>
+<h3 class="checkpoint-heading"><span class="checkpoint-label">Your turn</span><span class="checkpoint-number">10</span></h3>
+<p>Write a helper like <code>func allCompleted(tasks []Task) bool</code>. Modify <code>RequestTask()</code> so it assigns Map tasks if any are idle, returns <code>WaitTask</code> if a Map is still in progress, and starts assigning Reduce tasks only when all Maps are complete.</p>
+<p><strong>Easy bug to avoid:</strong> no idle Maps is not the same as all Maps done.</p>
+<pre><code class="language-text">No idle maps:
+Map 0 Running
+Map 1 Running
+
+All maps done:
+Map 0 Completed
+Map 1 Completed
+</code></pre>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-11"><span class="pager-direction">← Previous</span><span class="pager-title">Tell the Coordinator the Map Finished</span></a><a class="pager-link pager-next" href="#chapter-13"><span class="pager-direction">Next chapter →</span><span class="pager-title">Implement Reduce</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-13" data-chapter="13">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>13</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 03 · Reduce &amp; orchestration</p><h2>Implement Reduce</h2></div>
+      </header>
+      <div class="chapter-body"><p>Suppose the worker receives Reduce task 2. If there are eight Map tasks, it reads these files:</p>
+<pre><code class="language-text">mr-0-2
+mr-1-2
+mr-2-2
+mr-3-2
+mr-4-2
+mr-5-2
+mr-6-2
+mr-7-2
+</code></pre>
+<p>The worker needs <code>NMap</code> in the task reply. It reads every corresponding intermediate file, decodes all key/value pairs, combines them into one <code>[]KeyValue</code>, sorts by key, groups equal keys, and calls <code>reducef</code>.</p>
+<pre><code class="language-text">read every mr-X-2
+        ↓
+JSON-decode every KeyValue
+        ↓
+combine into one []KeyValue
+        ↓
+sort by Key
+        ↓
+group equal keys
+        ↓
+call reducef(key, values)
+</code></pre>
+<p>The sequential implementation in <code>mrsequential.go</code> already demonstrates much of the sorting and grouping logic.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-12"><span class="pager-direction">← Previous</span><span class="pager-title">The Map → Reduce Barrier</span></a><a class="pager-link pager-next" href="#chapter-14"><span class="pager-direction">Next chapter →</span><span class="pager-title">Sorting in Go</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-14" data-chapter="14">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>14</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 03 · Reduce &amp; orchestration</p><h2>Sorting in Go</h2></div>
+      </header>
+      <div class="chapter-body"><p>You could define the same <code>ByKey</code> type used in the sequential implementation, or use <code>sort.Slice</code>:</p>
+<pre><code class="language-go">sort.Slice(intermediate, func(i, j int) bool {
+    return intermediate[i].Key &lt; intermediate[j].Key
+})
+</code></pre>
+<p>If the input is:</p>
+<pre><code class="language-text">dog 1
+cat 1
+dog 1
+bird 1
+</code></pre>
+<p>sorting creates:</p>
+<pre><code class="language-text">bird 1
+cat  1
+dog  1
+dog  1
+</code></pre>
+<p>Then use two indexes: <code>i</code> is the first item of a group, and <code>j</code> is the first item after that group. The sequential code follows this pattern:</p>
+<pre><code class="language-go">i := 0
+
+for i &lt; len(intermediate) {
+    j := i + 1
+
+    for j &lt; len(intermediate) &amp;&amp;
+        intermediate[j].Key == intermediate[i].Key {
+        j++
+    }
+
+    // intermediate[i:j] are one key
+
+    i = j
+}
+</code></pre>
+<h3 class="checkpoint-heading"><span class="checkpoint-label">Your turn</span><span class="checkpoint-number">11</span></h3>
+<p>Write <code>doReduceTask(...)</code>. It should read every <code>mr-X-Y</code>, JSON-decode all key/value pairs, sort them, group identical keys, construct a <code>[]string</code> of their values, and call <code>reducef(key, values)</code>. Before writing output, print results like <code>cat -&gt; 93</code> and verify that they make sense.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-13"><span class="pager-direction">← Previous</span><span class="pager-title">Implement Reduce</span></a><a class="pager-link pager-next" href="#chapter-15"><span class="pager-direction">Next chapter →</span><span class="pager-title">Produce mr-out-X</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-15" data-chapter="15">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>15</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 03 · Reduce &amp; orchestration</p><h2>Produce <code>mr-out-X</code></h2></div>
+      </header>
+      <div class="chapter-body"><p>The final file for reducer X must be named <code>mr-out-X</code>. Each line should look exactly like <code>key value</code>:</p>
+<pre><code class="language-go">fmt.Fprintf(file, &quot;%v %v\n&quot;, key, output)
+</code></pre>
+<p>The grader expects this format. As with intermediate files, write to a temporary file, write everything, close it, and rename it to <code>mr-out-X</code>. Then report the Reduce task as finished.</p>
+<h3 class="checkpoint-heading"><span class="checkpoint-label">Your turn</span><span class="checkpoint-number">12</span></h3>
+<p>Finish Reduce output. At this point, <code>cat mr-out-* | sort</code> should match the sorted output from the sequential version. If WordCount does not work yet, do not implement crash recovery. Get correctness working first.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-14"><span class="pager-direction">← Previous</span><span class="pager-title">Sorting in Go</span></a><a class="pager-link pager-next" href="#chapter-16"><span class="pager-direction">Next chapter →</span><span class="pager-title">Complete the Worker Loop</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-16" data-chapter="16">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>16</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 03 · Reduce &amp; orchestration</p><h2>Complete the Worker Loop</h2></div>
+      </header>
+      <div class="chapter-body"><p>The worker now needs a loop that asks for a task and dispatches based on its type.</p>
+<pre><code class="language-go">for {
+    task := askCoordinator()
+
+    switch task.Type {
+
+    case MapTask:
+        doMapTask(...)
+        reportDone(...)
+
+    case ReduceTask:
+        doReduceTask(...)
+        reportDone(...)
+
+    case WaitTask:
+        sleep()
+
+    case ExitTask:
+        return
+    }
+}
+</code></pre>
+<p>Go’s <code>switch</code> does not require a <code>break</code> after every case like C. For waiting, use a short pause:</p>
+<pre><code class="language-go">time.Sleep(500 * time.Millisecond)
+</code></pre>
+<p>Without a sleep, a worker might repeatedly ask for work thousands of times per second. That is busy polling. A small sleep is fine for this lab.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-15"><span class="pager-direction">← Previous</span><span class="pager-title">Produce mr-out-X</span></a><a class="pager-link pager-next" href="#chapter-17"><span class="pager-direction">Next chapter →</span><span class="pager-title">Know When the Job Is Finished</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-17" data-chapter="17">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>17</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 03 · Reduce &amp; orchestration</p><h2>Know When the Job Is Finished</h2></div>
+      </header>
+      <div class="chapter-body"><p>The coordinator’s <code>Done()</code> method should essentially mean that all Reduce tasks have completed.</p>
+<pre><code class="language-go">func (c *Coordinator) Done() bool
+</code></pre>
+<p>Once the job is complete, workers should receive <code>ExitTask</code>. The order matters for the lab’s <code>TestEarlyExit</code>: outputs must already be finalized before processes begin disappearing.</p>
+<pre><code class="language-text">Reduce worker
+    ↓
+write complete mr-out-7
+    ↓
+atomic rename
+    ↓
+ReportTaskDone
+    ↓
+Coordinator marks Reduce 7 Completed
+    ↓
+all reduces complete
+    ↓
+Done() = true
+</code></pre>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-16"><span class="pager-direction">← Previous</span><span class="pager-title">Complete the Worker Loop</span></a><a class="pager-link pager-next" href="#chapter-18"><span class="pager-direction">Next chapter →</span><span class="pager-title">The Distributed-Systems Part: Worker Failure</span></a></nav>
+    </section>
+<div class="part-heading" id="part-4">
+          <div class="part-mark">04</div>
+          <div class="part-heading-copy"><p>PART 04</p><h2>Fault tolerance</h2></div>
+          <span class="part-range">Chapters 18–23</span>
+        </div>
+<section class="chapter" id="chapter-18" data-chapter="18">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>18</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 04 · Fault tolerance</p><h2>The Distributed-Systems Part: Worker Failure</h2></div>
+      </header>
+      <div class="chapter-body"><p>Suppose the coordinator assigns Map 3, and the worker crashes. The coordinator never receives a completion message. If nothing else happens, Map 3 stays in progress forever and the job hangs.</p>
+<p>The lab’s solution is intentionally simple: if a task has not completed after <strong>10 seconds</strong>, assume its worker is gone or not making progress and assign the task again.</p>
+<blockquote>
+<p>The coordinator does not actually know that the worker crashed. It only knows that it has not seen a result for too long.</p>
+</blockquote>
+<p>The worker could be dead, network-stalled, extremely slow, paused, or still working normally. Lack of response does not tell you which one happened.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-17"><span class="pager-direction">← Previous</span><span class="pager-title">Know When the Job Is Finished</span></a><a class="pager-link pager-next" href="#chapter-19"><span class="pager-direction">Next chapter →</span><span class="pager-title">Timeouts</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-19" data-chapter="19">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>19</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 04 · Fault tolerance</p><h2>Timeouts</h2></div>
+      </header>
+      <div class="chapter-body"><p>You already stored the task’s start time:</p>
+<pre><code class="language-go">Started time.Time
+</code></pre>
+<p>Check the elapsed time:</p>
+<pre><code class="language-go">time.Since(task.Started) &gt; 10*time.Second
+</code></pre>
+<p>If the timeout has passed, transition the task from <code>InProgress</code> back to <code>Idle</code>, allowing another worker to receive it.</p>
+<pre><code class="language-text">Idle → InProgress → Completed
+          ↑
+          |
+          + timeout
+</code></pre>
+<h3 class="checkpoint-heading"><span class="checkpoint-label">Your turn</span><span class="checkpoint-number">13</span></h3>
+<p>Add timeout handling. You can check for timed-out tasks whenever a worker requests a task: look for timeouts, reset expired tasks to idle, then assign available work. You do not need a background timer goroutine for the first implementation.</p>
+<p>Then try starting a coordinator and a worker, killing the worker while a Map is running, and starting another worker. The second worker should eventually receive the abandoned task.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-18"><span class="pager-direction">← Previous</span><span class="pager-title">The Distributed-Systems Part: Worker Failure</span></a><a class="pager-link pager-next" href="#chapter-20"><span class="pager-direction">Next chapter →</span><span class="pager-title">The Old Worker Might Not Actually Be Dead</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-20" data-chapter="20">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>20</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 04 · Fault tolerance</p><h2>The Old Worker Might Not Actually Be Dead</h2></div>
+      </header>
+      <div class="chapter-body"><p>Consider this sequence:</p>
+<pre><code class="language-text">t=0   Map 3 → Worker A
+t=10  Coordinator decides Worker A is too slow
+      Map 3 → Worker B
+t=11  Worker A finally finishes
+t=12  Worker B finishes
+</code></pre>
+<p>Map 3 executed twice. This is called <strong>at-least-once execution</strong>. It can happen in this lab.</p>
+<p>This is why operations should tolerate retries, files should be committed atomically, and the coordinator must handle duplicate completion messages.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-19"><span class="pager-direction">← Previous</span><span class="pager-title">Timeouts</span></a><a class="pager-link pager-next" href="#chapter-21"><span class="pager-direction">Next chapter →</span><span class="pager-title">A Nice Improvement: Attempt Numbers</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-21" data-chapter="21">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>21</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 04 · Fault tolerance</p><h2>A Nice Improvement: Attempt Numbers</h2></div>
+      </header>
+      <div class="chapter-body"><p>This is not the only possible implementation, but it teaches an important technique. Add an <code>Attempt int</code> field to a task. Every assignment increments it.</p>
+<pre><code class="language-text">Map 3 attempt 1 → Worker A
+timeout
+Map 3 attempt 2 → Worker B
+
+Worker A reports: Task 3, Attempt 1, Done
+Coordinator's current attempt = 2
+1 != 2 → ignore stale result
+</code></pre>
+<p>The worker reports the task ID and attempt number. The coordinator checks that the reported attempt is still current before marking it complete.</p>
+<pre><code class="language-go">type RequestTaskReply struct {
+    ...
+    Attempt int
+}
+
+type ReportTaskArgs struct {
+    Type    TaskType
+    TaskID  int
+    Attempt int
+}
+</code></pre>
+<h3 class="checkpoint-heading"><span class="checkpoint-label">Your turn</span><span class="checkpoint-number">14</span></h3>
+<p>You can either first pass the lab without attempt IDs and add them later, or add them now. The earlier recommendation was to add them now, because understanding stale messages is valuable distributed-systems practice.</p>
+<p>The central completion check becomes something like:</p>
+<pre><code class="language-go">if task.Attempt == args.Attempt &amp;&amp;
+   task.State == InProgress {
+
+    task.State = Completed
+}
+</code></pre>
+<p>This is one of the first genuinely distributed-systems-looking pieces of code you’ll write.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-20"><span class="pager-direction">← Previous</span><span class="pager-title">The Old Worker Might Not Actually Be Dead</span></a><a class="pager-link pager-next" href="#chapter-22"><span class="pager-direction">Next chapter →</span><span class="pager-title">Why Atomic Rename and Attempt IDs Solve Different Problems</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-22" data-chapter="22">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>22</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 04 · Fault tolerance</p><h2>Why Atomic Rename and Attempt IDs Solve Different Problems</h2></div>
+      </header>
+      <div class="chapter-body"><p>Don’t confuse them. They protect different kinds of state.</p>
+<table>
+<thead>
+<tr>
+  <th>Technique</th>
+  <th>Protects</th>
+  <th>Question it answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>Attempt ID</td>
+  <td>Coordinator state</td>
+  <td>Is this completion message still relevant?</td>
+</tr>
+<tr>
+  <td>Temporary file + rename</td>
+  <td>Filesystem state</td>
+  <td>Can anyone see half-written output?</td>
+</tr>
+</tbody>
+</table>
+<p>These solve different failure problems. Keep the distinction in mind for future 6.5840 labs.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-21"><span class="pager-direction">← Previous</span><span class="pager-title">A Nice Improvement: Attempt Numbers</span></a><a class="pager-link pager-next" href="#chapter-23"><span class="pager-direction">Next chapter →</span><span class="pager-title">Fix call() So Workers Can Exit Cleanly</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-23" data-chapter="23">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>23</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 04 · Fault tolerance</p><h2>Fix <code>call()</code> So Workers Can Exit Cleanly</h2></div>
+      </header>
+      <div class="chapter-body"><p>Your starter <code>call()</code> attempts:</p>
+<pre><code class="language-go">rpc.DialHTTP(&quot;unix&quot;, coordSockName)
+</code></pre>
+<p>Eventually the coordinator exits. Then a worker asks the coordinator for work, but the socket no longer exists. You can treat that as “the job ended; the worker exits.”</p>
+<p>Change the dial-error handling so it returns <code>false</code> rather than terminating through <code>log.Fatal</code>:</p>
+<pre><code class="language-go">c, err := rpc.DialHTTP(&quot;unix&quot;, coordSockName)
+
+if err != nil {
+    return false
+}
+</code></pre>
+<p>Then:</p>
+<pre><code class="language-go">if !call(...) {
+    return
+}
+</code></pre>
+<p>An explicit <code>ExitTask</code> is still cleaner while the coordinator remains alive. The assignment allows either style.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-22"><span class="pager-direction">← Previous</span><span class="pager-title">Why Atomic Rename and Attempt IDs Solve Different Problems</span></a><a class="pager-link pager-next" href="#chapter-24"><span class="pager-direction">Next chapter →</span><span class="pager-title">Your Finished Architecture</span></a></nav>
+    </section>
+<div class="part-heading" id="part-5">
+          <div class="part-mark">05</div>
+          <div class="part-heading-copy"><p>PART 05</p><h2>Review &amp; implementation</h2></div>
+          <span class="part-range">Chapters 24–28</span>
+        </div>
+<section class="chapter" id="chapter-24" data-chapter="24">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>24</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 05 · Review &amp; implementation</p><h2>Your Finished Architecture</h2></div>
+      </header>
+      <div class="chapter-body"><p>Once everything works, mentally redraw your code like this:</p>
+<pre><code class="language-text">                    Coordinator
+             +----------------------+
+             | mapTasks []Task      |
+             | reduceTasks []Task   |
+             | mutex                |
+             +----------------------+
+                  ^              |
+                  | RPC          | RPC
+                  |              v
+             +---------+     +---------+
+             | Worker A|     | Worker B|
+             +---------+     +---------+
+                  |               |
+              Map task         Map task
+                  |               |
+                  +-------+-------+
+                          |
+                    intermediate
+                       files
+                          |
+              +-----------+-----------+
+              |                       |
+          Reduce A                Reduce B
+              |                       |
+          mr-out-0                mr-out-1
+</code></pre>
+<p>The task state machine is:</p>
+<pre><code class="language-text">Idle → InProgress → Completed
+          ↑
+          └── timeout
+</code></pre>
+<p>Then the job progresses through the phases:</p>
+<pre><code class="language-text">all maps completed
+        ↓
+reduce phase
+        ↓
+all reduces completed
+        ↓
+job finished
+</code></pre>
+<p>If you can draw this from memory, you understand most of Lab 1.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-23"><span class="pager-direction">← Previous</span><span class="pager-title">Fix call() So Workers Can Exit Cleanly</span></a><a class="pager-link pager-next" href="#chapter-25"><span class="pager-direction">Next chapter →</span><span class="pager-title">The Go You Will Have Learned Along the Way</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-25" data-chapter="25">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>25</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 05 · Review &amp; implementation</p><h2>The Go You Will Have Learned Along the Way</h2></div>
+      </header>
+      <div class="chapter-body"><p>By the end, you will have used:</p>
+<pre><code class="language-go">// variables
+x := 10
+
+// functions
+func foo(x int) int
+
+// structs
+type Task struct { ... }
+
+// slices
+[]Task
+append(...)
+
+// loops
+for i := range tasks
+
+// switch
+switch task.Type
+
+// errors
+if err != nil
+
+// pointers
+func (c *Coordinator) RequestTask(...)
+
+// mutexes
+sync.Mutex
+
+// deferred cleanup
+defer c.mu.Unlock()
+
+// time
+time.Now()
+time.Since(...)
+
+// filesystem
+os.ReadFile
+os.CreateTemp
+os.Rename
+
+// serialization
+encoding/json
+
+// sorting
+sort.Slice
+
+// RPC
+net/rpc
+</code></pre>
+<p>One syntax item may initially look strange:</p>
+<pre><code class="language-go">func (c *Coordinator) Done() bool
+</code></pre>
+<p>The <code>(c *Coordinator)</code> means <code>Done</code> is a method on <code>Coordinator</code>. This is roughly like:</p>
+<pre><code class="language-python">class Coordinator:
+    def done(self) -&gt; bool:
+</code></pre>
+<p><code>c</code> is Go’s explicit version of <code>self</code>. The <code>*</code> means <code>c</code> is a pointer to the actual coordinator rather than a copy. You want that because you are modifying its state.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-24"><span class="pager-direction">← Previous</span><span class="pager-title">Your Finished Architecture</span></a><a class="pager-link pager-next" href="#chapter-26"><span class="pager-direction">Next chapter →</span><span class="pager-title">Test in This Order</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-26" data-chapter="26">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>26</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 05 · Review &amp; implementation</p><h2>Test in This Order</h2></div>
+      </header>
+      <div class="chapter-body"><p>Don’t repeatedly run the entire 90-second test suite while developing. Use this progression.</p>
+<h3>Format your code</h3>
+<pre><code class="language-bash">gofmt -w mr/worker.go mr/coordinator.go mr/rpc.go
+</code></pre>
+<h3>First, WordCount</h3>
+<pre><code class="language-bash">make RUN=&quot;-run Wc&quot; mr
+</code></pre>
+<p>Once that passes:</p>
+<pre><code class="language-bash">make RUN=&quot;-run Indexer&quot; mr
+</code></pre>
+<h3>Then parallelism</h3>
+<pre><code class="language-bash">make RUN=&quot;-run MapParallel&quot; mr
+make RUN=&quot;-run ReduceParallel&quot; mr
+</code></pre>
+<p>Then:</p>
+<pre><code class="language-bash">make RUN=&quot;-run JobCount&quot; mr
+</code></pre>
+<p>If this fails, you may be executing tasks more than once unnecessarily.</p>
+<pre><code class="language-bash">make RUN=&quot;-run EarlyExit&quot; mr
+</code></pre>
+<p>If this fails, think carefully about when a task is considered done, when its file is renamed, and when <code>Done()</code> becomes true.</p>
+<p>Finally:</p>
+<pre><code class="language-bash">make RUN=&quot;-run CrashWorker&quot; mr
+</code></pre>
+<p>If this fails, investigate timeouts, reassignment, duplicate execution, partial files, and stale completions.</p>
+<p>Then run the full suite:</p>
+<pre><code class="language-bash">make mr
+</code></pre>
+<p>The supplied tests exercise correctness, Map parallelism, Reduce parallelism, avoiding unnecessary duplicate work, safe termination, and crash recovery.</p>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-25"><span class="pager-direction">← Previous</span><span class="pager-title">The Go You Will Have Learned Along the Way</span></a><a class="pager-link pager-next" href="#chapter-27"><span class="pager-direction">Next chapter →</span><span class="pager-title">Your Actual Implementation Order</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-27" data-chapter="27">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>27</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 05 · Review &amp; implementation</p><h2>Your Actual Implementation Order</h2></div>
+      </header>
+      <div class="chapter-body"><p>Don’t try to solve everything at once. Build it in this progression:</p>
+<table>
+<thead>
+<tr>
+  <th style="text-align:right">Step</th>
+  <th>Build this</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td style="text-align:right">1</td>
+  <td>Understand <code>mrsequential.go</code> and <code>wc.go</code></td>
+</tr>
+<tr>
+  <td style="text-align:right">2</td>
+  <td>Define <code>Task</code>, <code>TaskState</code>, and <code>TaskType</code></td>
+</tr>
+<tr>
+  <td style="text-align:right">3</td>
+  <td>Initialize tasks in <code>MakeCoordinator()</code></td>
+</tr>
+<tr>
+  <td style="text-align:right">4</td>
+  <td>Worker requests a task through RPC</td>
+</tr>
+<tr>
+  <td style="text-align:right">5</td>
+  <td>Coordinator assigns distinct Map tasks</td>
+</tr>
+<tr>
+  <td style="text-align:right">6</td>
+  <td>Worker executes Map</td>
+</tr>
+<tr>
+  <td style="text-align:right">7</td>
+  <td>Partition Map output</td>
+</tr>
+<tr>
+  <td style="text-align:right">8</td>
+  <td>Write <code>mr-X-Y</code> JSON files</td>
+</tr>
+<tr>
+  <td style="text-align:right">9</td>
+  <td>Report Map completion</td>
+</tr>
+<tr>
+  <td style="text-align:right">10</td>
+  <td>Wait until all Maps complete</td>
+</tr>
+<tr>
+  <td style="text-align:right">11</td>
+  <td>Assign Reduce tasks</td>
+</tr>
+<tr>
+  <td style="text-align:right">12</td>
+  <td>Read intermediate files</td>
+</tr>
+<tr>
+  <td style="text-align:right">13</td>
+  <td>Sort and group keys</td>
+</tr>
+<tr>
+  <td style="text-align:right">14</td>
+  <td>Run <code>reducef()</code></td>
+</tr>
+<tr>
+  <td style="text-align:right">15</td>
+  <td>Atomically create <code>mr-out-X</code></td>
+</tr>
+<tr>
+  <td style="text-align:right">16</td>
+  <td>Report Reduce completion</td>
+</tr>
+<tr>
+  <td style="text-align:right">17</td>
+  <td>Implement <code>Done()</code> and worker exit</td>
+</tr>
+<tr>
+  <td style="text-align:right">18</td>
+  <td>Add mutex correctness</td>
+</tr>
+<tr>
+  <td style="text-align:right">19</td>
+  <td>Add the 10-second timeout</td>
+</tr>
+<tr>
+  <td style="text-align:right">20</td>
+  <td>Reassign abandoned tasks</td>
+</tr>
+<tr>
+  <td style="text-align:right">21</td>
+  <td>Handle stale or duplicate completion</td>
+</tr>
+<tr>
+  <td style="text-align:right">22</td>
+  <td>Test crashes</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>The important dividing line:</strong> First make basic MapReduce work. Only after that should you add timeout-based failure handling. Don’t debug RPC, JSON, sorting, concurrency, timeouts, and crashes all at the same time.</p>
+</blockquote>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-26"><span class="pager-direction">← Previous</span><span class="pager-title">Test in This Order</span></a><a class="pager-link pager-next" href="#chapter-28"><span class="pager-direction">Next chapter →</span><span class="pager-title">The Five Questions You Should Be Able to Answer at the End</span></a></nav>
+    </section>
+<section class="chapter" id="chapter-28" data-chapter="28">
+      <header class="chapter-head">
+        <div class="chapter-index"><span>CHAPTER</span><strong>28</strong></div>
+        <div class="chapter-title"><p class="chapter-kicker">PART 05 · Review &amp; implementation</p><h2>The Five Questions You Should Be Able to Answer at the End</h2></div>
+      </header>
+      <div class="chapter-body"><p>Don’t consider the assignment complete just because the tests pass. You should be able to explain these without looking at your code.</p>
+<h3>1. Why does every Map task produce <code>nReduce</code> files?</h3>
+<p>Because every mapper partitions its intermediate keys according to which reducer owns them.</p>
+<h3>2. Why must reducer Y read <code>mr-X-Y</code> from every Map task X?</h3>
+<p>Because any mapper may have produced keys belonging to reducer Y.</p>
+<h3>3. Why does the coordinator need a mutex?</h3>
+<p>Multiple RPC handlers can concurrently inspect and modify shared task metadata.</p>
+<h3>4. Why does a 10-second timeout not prove that a worker died?</h3>
+<p>In an asynchronous distributed system, lack of response cannot distinguish a crash from slowness or delay.</p>
+<h3>5. Why use temporary files plus atomic rename?</h3>
+<p>Because workers can crash at arbitrary points, and consumers should never observe partially written output.</p>
+<blockquote>
+<p><strong>Your first milestone:</strong> Start with Chapters 1–5 and get to the point where two workers successfully request two different Map tasks. That is the first satisfying milestone. Then move forward one chapter at a time rather than reading all the reference snippets immediately.</p>
+</blockquote>
+</div>
+      <nav class="chapter-pager" aria-label="Chapter navigation"><a class="pager-link pager-prev" href="#chapter-27"><span class="pager-direction">← Previous</span><span class="pager-title">Your Actual Implementation Order</span></a><a class="pager-link pager-next" href="#top"><span class="pager-direction">↑ Back to overview</span><span class="pager-title">You reached the end</span></a></nav>
+    </section></div>
+  <footer class="footer"><strong>MIT 6.5840 Lab 1 · MapReduce in Go</strong><br>Assignment reference: <a href="https://pdos.csail.mit.edu/6.824/labs/lab-mr.html" target="_blank" rel="noreferrer">MIT MapReduce lab instructions</a>. This page organizes the walkthrough into a standalone reading guide. Implementation checkpoints are intentional: try each task before leaning on the reference snippets.</footer>
+</div></main>
+</div>
+<script>
+const progress=document.getElementById('progress');
+const allNavLinks=Array.from(document.querySelectorAll('.chapter-nav a'));
+const sections=Array.from(document.querySelectorAll('.chapter'));
+const searchPairs=[
+  {input:document.getElementById('desktopSearch'),nav:document.getElementById('desktopNav'),empty:document.getElementById('desktopEmpty')},
+  {input:document.getElementById('mobileSearch'),nav:document.getElementById('mobileNav'),empty:document.getElementById('mobileEmpty')}
+];
+function updateProgress(){const max=document.documentElement.scrollHeight-window.innerHeight;progress.style.width=(max>0?Math.min(100,window.scrollY/max*100):0)+'%'}
+window.addEventListener('scroll',updateProgress,{passive:true});updateProgress();
+function activateChapter(id){allNavLinks.forEach(link=>link.classList.toggle('active',link.getAttribute('href')==='#'+id))}
+if('IntersectionObserver' in window){const observer=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(entry.isIntersecting)activateChapter(entry.target.id)})},{rootMargin:'-14% 0px -72% 0px',threshold:0});sections.forEach(section=>observer.observe(section))}
+function filterNavigation(value){const query=value.trim().toLowerCase();searchPairs.forEach(({input,nav,empty})=>{if(input.value!==value)input.value=value;let visible=0;nav.querySelectorAll('.nav-group').forEach(group=>{let groupVisible=0;group.querySelectorAll('li').forEach(item=>{const match=item.textContent.toLowerCase().includes(query);item.style.display=match?'':'none';if(match){visible++;groupVisible++}});group.style.display=groupVisible?'':'none'});empty.style.display=visible?'none':'block'})}
+searchPairs.forEach(({input})=>input.addEventListener('input',()=>filterNavigation(input.value)));
+document.querySelectorAll('.mobile-contents .chapter-nav a').forEach(link=>link.addEventListener('click',()=>{document.getElementById('mobileContents').open=false}));
+document.querySelectorAll('.chapter pre').forEach(pre=>{const button=document.createElement('button');button.type='button';button.className='copy-button';button.textContent='Copy';button.setAttribute('aria-label','Copy code snippet');button.addEventListener('click',async()=>{const text=pre.querySelector('code')?.innerText||pre.innerText;try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(text)}else{const area=document.createElement('textarea');area.value=text;area.style.position='fixed';area.style.opacity='0';document.body.appendChild(area);area.select();const ok=document.execCommand('copy');area.remove();if(!ok)throw new Error('Copy failed')}button.textContent='Copied';button.classList.add('copied');setTimeout(()=>{button.textContent='Copy';button.classList.remove('copied')},1300)}catch(e){button.textContent='Select code';const selection=window.getSelection();const range=document.createRange();const code=pre.querySelector('code')||pre;range.selectNodeContents(code);selection.removeAllRanges();selection.addRange(range)}});pre.appendChild(button)});
+</script>
+</body></html>
