@@ -15,10 +15,10 @@
 2. Pick a short kebab-case slug, e.g. `transformer-attention-explainer`.
 3. Write the file to: `p/<category>/<slug>.html` in repo `irfanalimd/sites` on branch `main`.
 4. Commit message: `publish: <category>/<slug>`.
-5. Tell the user the live URL: `https://irfanalimd.github.io/sites/p/<category>/<slug>.html`
+5. Tell the user the live URL: `https://sites.irfanali.me/p/<category>/<slug>.html`
    (GitHub Pages takes ~30-60 seconds to update after the commit.)
 
-The homepage (`https://irfanalimd.github.io/sites/`) lists every `.html` under `p/<category>/` automatically,
+The homepage (`https://sites.irfanali.me/`) lists every `.html` under `p/<category>/` automatically,
 with filters per category. A folder's `index.html` is linked as the folder
 (e.g. `p/random/espresso-bench/`), but prefer the flat `p/<category>/<slug>.html` form.
 
@@ -60,5 +60,5 @@ and add `-f sha=<sha>` to the PUT.
 ## TIL (Today I Learned)
 
 If the user asks to add something to "today's learnings" or "TIL", don't create a new page.
-Follow the step-by-step instructions in AGENTS.md: https://irfanalimd.github.io/sites/AGENTS.md
+Follow the step-by-step instructions in AGENTS.md: https://sites.irfanali.me/AGENTS.md
 (In short: append an entry to today's section in `p/til/<this week's Monday>.html`, creating the week from `p/til/_template.html` if needed.)

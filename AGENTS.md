@@ -1,9 +1,9 @@
 # Agent instructions: irfanalimd/sites
 
-A static GitHub Pages site at https://irfanalimd.github.io/sites/. There's no build step: every `.html` under `p/` shows up on the homepage automatically.
+A static GitHub Pages site at https://sites.irfanali.me/ (repo `irfanalimd/sites`). There's no build step: every `.html` under `p/` shows up on the homepage automatically.
 
 - Pages live in `p/learning/`, `p/research/`, `p/random/`, and `p/til/`. To publish a standalone page, follow [llms.txt](llms.txt).
-- Don't edit `index.html`, `404.html`, `llms.txt`, or other people's pages unless the user asks.
+- Don't edit `index.html`, `404.html`, `llms.txt`, `CNAME` (the custom domain), or other people's pages unless the user asks.
 - Files whose names start with `_` (e.g. `p/til/_template.html`) are helpers. The homepage ignores them.
 
 ## TIL (Today I Learned)
@@ -58,7 +58,7 @@ This is a running log with **one HTML page per week**. Weeks start on **Monday**
    - Use plain HTML only, with no new CSS or scripts. The template's styles cover `h3`, `h4`, `p`, `ul`, `ol`, `dl`, `code` and `em`.
    - Escape `<`, `>`, and `&` inside text.
 5. Never change other days or other weeks unless the user asks.
-6. Commit with the message `publish: til/M <short topic>` (e.g. `publish: til/2026-10-12 vpn and tailscale`) and push to `main`. The site updates in about a minute at `https://irfanalimd.github.io/sites/p/til/M.html#D`.
+6. Commit with the message `publish: til/M <short topic>` (e.g. `publish: til/2026-10-12 vpn and tailscale`) and push to `main`. The site updates in about a minute at `https://sites.irfanali.me/p/til/M.html#D`.
 
 ### Without a clone (GitHub connector or API)
 

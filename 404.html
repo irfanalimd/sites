@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Not found — Irfan Ali</title>
 <script>
-  // Pages that moved. Old path (after /sites/) → new path.
+  // Pages that moved. Old path → new path.
   const moved = {
     "p/media/espresso-bench": "p/random/espresso-bench/",
     "p/hello-world.html": "p/random/hello-world.html",
     "p/hello-world": "p/random/hello-world.html",
   };
-  const rel = location.pathname.replace(/^\/sites\//, "").replace(/\/(index\.html)?$/, "");
-  if (moved[rel]) location.replace("/sites/" + moved[rel]);
+  const rel = location.pathname.replace(/^\/(sites\/)?/, "").replace(/\/(index\.html)?$/, "");
+  if (moved[rel]) location.replace("/" + moved[rel]);
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,6 +27,6 @@
 </style>
 </head>
 <body>
-  <div><h1>Nothing here.</h1><a href="/sites/">← Back to the index</a></div>
+  <div><h1>Nothing here.</h1><a href="/">← Back to the index</a></div>
 </body>
 </html>
