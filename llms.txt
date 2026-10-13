@@ -10,6 +10,7 @@
    - `learning` — explainers, tutorials, exercises, things learned or taught
    - `research` — research reports, literature reviews, analyses, findings
    - `random`   — everything else (toys, experiments, one-offs)
+   (`til` is also a section, but it's a weekly log edited in place, not a place for standalone pages. See below.)
    If unsure, ask the user; otherwise default to `random`.
 2. Pick a short kebab-case slug, e.g. `transformer-attention-explainer`.
 3. Write the file to: `p/<category>/<slug>.html` in repo `irfanalimd/sites` on branch `main`.
@@ -55,3 +56,9 @@ and add `-f sha=<sha>` to the PUT.
 ### Git (CLI agents)
     git clone https://github.com/irfanalimd/sites && cp page.html sites/p/<category>/<slug>.html
     then commit and push to main.
+
+## TIL (Today I Learned)
+
+If the user asks to add something to "today's learnings" or "TIL", don't create a new page.
+Follow the step-by-step instructions in AGENTS.md: https://irfanalimd.github.io/sites/AGENTS.md
+(In short: append an entry to today's section in `p/til/<this week's Monday>.html`, creating the week from `p/til/_template.html` if needed.)

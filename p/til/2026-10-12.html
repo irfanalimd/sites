@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Week of 12 Oct 2026</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='9' fill='%23111'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500&family=Geist+Mono:wght@400&family=Instrument+Serif:ital@1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fafaf9; --ink: #111111; --ink-2: #4a4a4a; --muted: #9a9a98; --line: #e7e7e4;
+    --sans: Geist, ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif;
+    --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --serif: "Instrument Serif", Georgia, serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0b0b0c; --ink: #f2f2f0; --ink-2: #b4b4b2; --muted: #6b6b6a; --line: #1f1f21; }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 var(--sans); }
+  a { color: inherit; }
+  .col { max-width: 640px; margin: 0 auto; padding: 0 max(24px, env(safe-area-inset-right)) 96px max(24px, env(safe-area-inset-left)); }
+  .mono { font-family: var(--mono); font-size: 12px; letter-spacing: .03em; text-transform: uppercase; }
+
+  header { display: flex; justify-content: space-between; align-items: baseline; padding: 32px 0 0; }
+  header a { text-decoration: none; color: var(--muted); }
+  header a:hover { color: var(--ink); }
+  header .name { color: var(--ink); font-weight: 500; }
+
+  .intro { padding: 72px 0 40px; border-bottom: 1px solid var(--ink); }
+  .intro .mono { color: var(--muted); margin: 0 0 14px; }
+  h1 { font-weight: 400; font-size: clamp(36px, 9vw, 52px); line-height: 1.02; letter-spacing: -0.045em; margin: 0; }
+  .days { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 24px; }
+  .days a { color: var(--muted); text-decoration: none; }
+  .days a:hover { color: var(--ink); }
+
+  /* One <section class="day"> per day, oldest first. One <article class="entry"> per thing learned. */
+  .day { padding-top: 56px; scroll-margin-top: 16px; }
+  .day > h2 {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font: italic 400 32px/1.1 var(--serif); margin: 0 0 8px; padding-bottom: 12px; border-bottom: 1px solid var(--line);
+  }
+  .day > h2 .mono { font-style: normal; color: var(--muted); }
+  .entry { padding: 28px 0; }
+  .entry + .entry { border-top: 1px dashed var(--line); }
+  .entry h3 { font-weight: 500; font-size: 21px; letter-spacing: -0.02em; line-height: 1.3; margin: 0 0 6px; }
+  .entry .lede { color: var(--muted); margin: 0 0 20px; }
+  .entry h4 { font-family: var(--mono); font-weight: 400; font-size: 12px; letter-spacing: .03em; text-transform: uppercase; color: var(--muted); margin: 28px 0 4px; }
+  .entry p, .entry ul, .entry ol { color: var(--ink-2); margin: 0 0 14px; }
+  .entry li { margin-bottom: 6px; }
+  .entry dl { margin: 0; }
+  .entry dt { font-weight: 500; margin-top: 16px; }
+  .entry dd { margin: 4px 0 0; color: var(--ink-2); }
+  .entry code { font-family: var(--mono); font-size: .88em; background: color-mix(in srgb, var(--ink) 6%, transparent); padding: 1px 5px; border-radius: 4px; }
+  .entry em { font-style: italic; }
+
+  footer { margin-top: 72px; padding-top: 18px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; color: var(--muted); }
+  footer a { text-decoration: none; } footer a:hover { color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="col">
+  <header>
+    <a class="name" href="../../">Irfan Ali</a>
+    <a class="mono" href="../../#til">← TIL</a>
+  </header>
+
+  <section class="intro">
+    <p class="mono">TIL · Week 42 · 2026</p>
+    <h1>Week of 12 October 2026</h1>
+    <nav class="days mono" id="days" aria-label="Days"></nav>
+  </section>
+
+  <!-- ===== DAYS (oldest first). Add each new day just above the "new days" marker below. ===== -->
+
+  <section class="day" id="2026-10-12">
+    <h2>Monday<span class="mono">12 Oct</span></h2>
+
+    <article class="entry">
+      <h3>VPN and Tailscale</h3>
+      <p class="lede">A recap.</p>
+
+      <h4>VPNs</h4>
+      <dl>
+        <dt>VPN (Virtual Private Network)</dt>
+        <dd>A protected network connection over existing infrastructure, usually the internet. “Virtual” means no dedicated physical connection; “private” means traffic is protected with encryption. It does not inherently mean hiding your IP or changing your location.</dd>
+        <dt>Encrypted tunnel</dt>
+        <dd>Carries traffic securely between endpoints. Observers along the route cannot read its encrypted contents; the endpoints can.</dd>
+        <dt>Work VPN vs. consumer VPN</dt>
+        <dd>A work VPN connects your device to company resources. A consumer VPN routes browsing through a provider’s server; websites see that server’s public IP instead of yours.</dd>
+      </dl>
+
+      <h4>Tailscale</h4>
+      <dl>
+        <dt>Tailscale</dt>
+        <dd>A mesh VPN connecting authorized devices — laptops, phones, servers — into a private network called a <em>tailnet</em>. Uses WireGuard for encryption.</dd>
+        <dt>Mesh</dt>
+        <dd>Devices connect directly where possible, rather than always through one central VPN server. Tailscale’s coordination service helps establish connections; relays carry encrypted traffic when direct connections fail, without decrypting it.</dd>
+        <dt>Access controls</dt>
+        <dd>Define which users and devices can reach which resources.</dd>
+        <dt>Exit node</dt>
+        <dd>A device selected to route internet traffic. Without one, Tailscale generally leaves ordinary browsing unchanged; with one, browsing exits through that device’s internet connection.</dd>
+        <dt>Scope</dt>
+        <dd>Tailscale supplies connectivity, not file-sharing or remote-desktop functionality. It runs over your existing internet and generally avoids manual router port forwarding or exposing private services publicly.</dd>
+      </dl>
+    </article>
+
+    <!-- TIL:END-DAY 2026-10-12 (add more entries for this day just above this line) -->
+  </section>
+
+  <!-- TIL:NEW-DAYS-ABOVE -->
+
+  <footer class="mono">
+    <a href="../../#til">← All weeks</a>
+    <span>Irfan Ali</span>
+  </footer>
+</div>
+<script>
+  // Builds the day links at the top from the day sections, so nothing else needs editing.
+  const days = document.getElementById("days");
+  document.querySelectorAll("section.day").forEach(s => {
+    const a = document.createElement("a");
+    a.href = `#${s.id}`;
+    a.textContent = s.querySelector("h2").firstChild.textContent.trim();
+    days.append(a);
+  });
+</script>
+</body>
+</html>

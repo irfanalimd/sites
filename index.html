@@ -40,7 +40,7 @@
     display: flex; flex-direction: column;
     padding: 0 max(24px, env(safe-area-inset-right)) 0 max(24px, env(safe-area-inset-left));
   }
-  main { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: clamp(16px, 4vh, 64px) 0; }
+  main { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: clamp(12px, 3vh, 56px) 0; }
   .mono { font-family: var(--mono); font-size: 12px; letter-spacing: .03em; text-transform: uppercase; }
 
   header { display: flex; justify-content: space-between; align-items: baseline; padding: clamp(16px, 4vh, 32px) 0 0; }
@@ -50,7 +50,7 @@
 
   h1 {
     font-weight: 400; font-size: clamp(36px, min(10vw, 6.4vh), 56px); line-height: 1.02; letter-spacing: -0.045em;
-    margin: 0 0 clamp(20px, 5vh, 64px);
+    margin: 0 0 clamp(16px, 4vh, 56px);
   }
   h1 span { color: var(--muted); }
 
@@ -59,7 +59,7 @@
   .doors li { border-bottom: 1px solid var(--line); }
   .door {
     display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 16px;
-    padding: clamp(10px, 2vh, 20px) 0; position: relative;
+    padding: clamp(8px, 1.5vh, 18px) 0; position: relative;
   }
   .door::before, .row::before {
     content: ""; position: absolute; inset: 0 -14px; border-radius: 6px;
@@ -97,8 +97,8 @@
   .sign span { color: var(--muted); }
   .base { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); padding-top: 14px; border-top: 1px solid var(--line); }
   .base a:hover { color: var(--ink); }
-  /* Short screens (small phones, landscape): drop the descriptions so the four rows still fit. */
-  @media (max-height: 680px) { .door small { display: none; } }
+  /* Short screens (small phones, landscape): drop the descriptions so all the rows still fit. */
+  @media (max-height: 760px) { .door small { display: none; } }
   [hidden] { display: none !important; }
   /* Note for AI agents: kept in the page text, but off-screen and hidden from screen readers. */
   .agent-note { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -137,10 +137,11 @@
   const CATEGORIES = {
     learning: "Explainers, tutorials & exercises",
     research: "Reports, reviews & analyses",
+    til:      "Today I learned, one page a week",
     random:   "Experiments & everything else",
   };
   const VIEWS = { ...CATEGORIES, all: "Everything, newest first" };
-  const label = c => c[0].toUpperCase() + c.slice(1);
+  const label = c => c === "til" ? "TIL" : c[0].toUpperCase() + c.slice(1);
   let pages = [], loaded = false;
   document.getElementById("yr").textContent = new Date().getFullYear();
 
@@ -208,7 +209,8 @@
     }
     // Any .html under p/<category>/, at any depth. A folder's index.html is linked as the folder.
     pages = tree.tree
-      .filter(f => f.type === "blob" && f.path.startsWith("p/") && f.path.endsWith(".html"))
+      // Files starting with "_" (like p/til/_template.html) are helpers, not pages.
+      .filter(f => f.type === "blob" && f.path.startsWith("p/") && f.path.endsWith(".html") && !f.path.split("/").pop().startsWith("_"))
       .map(f => {
         const slug = f.path.slice(2).replace(/(\/index)?\.html$/, "");
         const top = slug.split("/")[0];
