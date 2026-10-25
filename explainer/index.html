@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explainer</title>
+<meta name="description" content="Name an idea from computer science. Explainer builds a small working version of it and teaches you with it, on one page. Open source, for Claude Code.">
+<meta property="og:title" content="Explainer">
+<meta property="og:description" content="Don't draw it. Run it. A Claude Code skill that builds the idea and teaches you with it.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111'/%3E%3Cpath d='M13 10l9 6-9 6z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F4F3EF;
+    --ink: #111110;
+    --muted: #6E6C66;
+    --faint: #B9B6AE;
+    --line: #DEDBD3;
+    --card: #FFFFFF;
+    --pill: #111110;
+    --pill-ink: #F4F3EF;
+    --live: #2BB673;
+    --keys-1: #4F8CFF; --keys-2: #FF7A5C; --keys-3: #2FD3A0; --keys-4: #A47BFF;
+    --display: "Inter Tight", "Inter", system-ui, sans-serif;
+    --text: "Inter", system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --gutter: clamp(16px, 4vw, 56px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0E0F12; --ink: #F1F0EC; --muted: #8E8C86; --faint: #4A4945; --line: #24252A;
+      --card: #16171B; --pill: #F1F0EC; --pill-ink: #0E0F12; --live: #3DDC97;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0E0F12; --ink: #F1F0EC; --muted: #8E8C86; --faint: #4A4945; --line: #24252A;
+    --card: #16171B; --pill: #F1F0EC; --pill-ink: #0E0F12; --live: #3DDC97;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 400 17px/1.55 var(--text); -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a { color: inherit; }
+  ::selection { background: var(--ink); color: var(--bg); }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 0 var(--gutter); }
+
+  /* top */
+  header.top { display: flex; align-items: center; justify-content: space-between; height: 76px; }
+  .mark { display: flex; align-items: center; gap: 10px; font: 600 17px/1 var(--display); letter-spacing: -0.01em; text-decoration: none; }
+  .mark i { width: 22px; height: 22px; border-radius: 6px; background: var(--ink); display: grid; place-items: center; }
+  .mark i::after { content: ""; border-left: 7px solid var(--bg); border-top: 4.5px solid transparent; border-bottom: 4.5px solid transparent; margin-left: 2px; }
+  nav { display: flex; gap: 28px; font-size: 15px; }
+  nav a { text-decoration: none; color: var(--muted); transition: color .2s; }
+  nav a:hover { color: var(--ink); }
+
+  /* hero */
+  .hero { padding: clamp(72px, 13vh, 150px) 0 clamp(48px, 8vh, 88px); }
+  .eyebrow { font: 500 13px/1 var(--mono); color: var(--muted); letter-spacing: 0.02em; display: flex; gap: 14px; align-items: center; margin: 0 0 36px; }
+  .eyebrow span + span::before { content: ""; display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: var(--faint); margin-right: 14px; vertical-align: middle; }
+  h1 {
+    font: 700 clamp(64px, 12.5vw, 188px)/0.88 var(--display);
+    letter-spacing: -0.055em; margin: 0 0 0 -0.05em;
+  }
+  h1 .soft { color: var(--faint); }
+  h1 .dot { display: inline-block; width: 0.16em; height: 0.16em; border-radius: 50%; background: var(--live); margin-left: 0.06em; vertical-align: 0.02em; animation: pulse 2.4s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+  .lede-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 48px; align-items: end; margin-top: clamp(48px, 7vh, 80px); }
+  .lede { font: 400 clamp(20px, 1.9vw, 26px)/1.4 var(--text); letter-spacing: -0.012em; margin: 0; max-width: 33ch; }
+  .install { justify-self: end; width: 100%; max-width: 640px; }
+  .cmd {
+    display: flex; align-items: center; gap: 12px; padding: 8px 8px 8px 20px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+  }
+  .cmd code { font: 400 14px/1.3 var(--mono); flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+  .cmd code::-webkit-scrollbar { display: none; }
+  .cmd code b { font-weight: 500; }
+  .cmd button {
+    flex: none; border: 0; cursor: pointer; border-radius: 999px; padding: 11px 18px;
+    background: var(--pill); color: var(--pill-ink); font: 500 14px/1 var(--text); transition: transform .15s;
+  }
+  .cmd button:active { transform: scale(.97); }
+  .then { font-size: 14px; color: var(--muted); margin: 14px 0 0 20px; }
+  .then code { font: 400 13px var(--mono); color: var(--ink); }
+
+  /* the demo */
+  .demo { padding: clamp(40px, 6vh, 64px) 0 clamp(96px, 14vh, 160px); }
+  .demo-head { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 20px; flex-wrap: wrap; }
+  .tabs { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); }
+  .tabs button {
+    border: 0; background: none; cursor: pointer; border-radius: 999px; padding: 10px 18px;
+    font: 500 14px/1 var(--text); color: var(--muted); display: flex; align-items: center; gap: 8px; transition: color .2s, background .2s;
+  }
+  .tabs button i { width: 8px; height: 8px; border-radius: 3px; background: currentColor; opacity: .5; }
+  .tabs button:nth-child(1) i { background: var(--keys-1); }
+  .tabs button:nth-child(2) i { background: var(--keys-2); }
+  .tabs button:nth-child(3) i { background: var(--keys-3); }
+  .tabs button[aria-selected="true"] { background: var(--pill); color: var(--pill-ink); }
+  .tabs button[aria-selected="true"] i { opacity: 1; }
+  .live { font: 500 13px/1 var(--mono); color: var(--muted); display: flex; align-items: center; gap: 10px; align-self: center; }
+  .live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--live); animation: pulse 2.4s ease-in-out infinite; }
+  .frame {
+    position: relative; aspect-ratio: 16 / 10; border-radius: 22px; overflow: hidden;
+    background: var(--card); border: 1px solid var(--line);
+    box-shadow: 0 1px 0 rgba(0,0,0,.02), 0 30px 80px -40px rgba(20,20,10,.28);
+  }
+  .frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .demo-foot { display: flex; justify-content: space-between; gap: 24px; margin-top: 18px; font-size: 15px; color: var(--muted); }
+  .demo-foot p { margin: 0; max-width: 60ch; }
+  .demo-foot a { color: var(--ink); text-decoration: none; white-space: nowrap; border-bottom: 1px solid var(--line); padding-bottom: 2px; }
+  .demo-foot a:hover { border-color: var(--ink); }
+
+  /* why */
+  .why { border-top: 1px solid var(--line); padding: clamp(80px, 12vh, 140px) 0; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 48px; }
+  .label { font: 500 13px/1.6 var(--mono); color: var(--muted); margin: 0; }
+  .why .big { font: 500 clamp(28px, 3.5vw, 50px)/1.14 var(--display); letter-spacing: -0.03em; margin: 0 0 1.1em; max-width: 21ch; }
+  .why .big .soft { color: var(--faint); }
+  .why .body { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; max-width: 880px; }
+  .why .body p { margin: 0; color: var(--muted); font-size: 18px; }
+  .why .body p strong { color: var(--ink); font-weight: 500; }
+
+  /* facts */
+  .facts { border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .facts div { padding: 40px 32px 56px 0; }
+  .facts div + div { padding-left: 32px; border-left: 1px solid var(--line); }
+  .facts .n { font: 500 13px var(--mono); color: var(--faint); }
+  .facts h3 { font: 600 22px/1.2 var(--display); letter-spacing: -0.02em; margin: 28px 0 10px; }
+  .facts p { margin: 0; color: var(--muted); font-size: 16px; max-width: 32ch; }
+
+  /* end */
+  .end { border-top: 1px solid var(--line); padding: clamp(96px, 16vh, 180px) 0 0; text-align: left; }
+  .end h2 { font: 700 clamp(48px, 8vw, 120px)/0.92 var(--display); letter-spacing: -0.05em; margin: 0 0 40px; }
+  .end h2 .soft { color: var(--faint); }
+  .end .cmd { max-width: 640px; }
+  footer { display: flex; justify-content: space-between; gap: 24px; padding: clamp(96px, 14vh, 160px) 0 40px; font-size: 14px; color: var(--muted); flex-wrap: wrap; }
+  footer a { text-decoration: none; color: var(--ink); }
+  footer nav { gap: 24px; }
+
+  @media (max-width: 900px) {
+    .lede-row { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+    .install { justify-self: start; }
+    .why { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+    .why .body { grid-template-columns: 1fr; gap: 20px; }
+  }
+  @media (max-width: 700px) {
+    nav.main a.hide-s { display: none; }
+    .frame { aspect-ratio: 9 / 16; max-height: 82vh; border-radius: 18px; width: 100%; }
+    .tabs { width: 100%; }
+    .tabs button { flex: 1; justify-content: center; padding: 10px 8px; font-size: 13px; }
+    .demo-foot { flex-direction: column; gap: 10px; }
+    .facts { grid-template-columns: 1fr; }
+    .facts div, .facts div + div { padding: 32px 0; border-left: 0; }
+    .facts div + div { border-top: 1px solid var(--line); }
+    .facts h3 { margin-top: 16px; }
+    .cmd { padding-left: 16px; }
+    .cmd code { font-size: 12.5px; }
+    .then { margin-left: 16px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="mark" href="./"><i></i>Explainer</a>
+    <nav class="main">
+      <a href="#see" class="hide-s">Examples</a>
+      <a href="#why" class="hide-s">Why</a>
+      <a href="https://github.com/irfanalimd/explainer">GitHub</a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <p class="eyebrow"><span>Open source</span><span>For Claude Code</span></p>
+    <h1>Don’t draw it.<br><span class="soft">Run it</span><span class="dot" aria-hidden="true"></span></h1>
+    <div class="lede-row">
+      <p class="lede">Name an idea from computer science. Explainer builds a small working version of it, then teaches you with it, all on one page.</p>
+      <div class="install">
+        <div class="cmd"><code><b>/plugin install</b> explainer --marketplace irfanalimd/explainer</code><button type="button" data-copy>Copy</button></div>
+        <p class="then">Then type <code>/explainer raft</code>, or whatever you’ve been meaning to understand.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="demo" id="see">
+    <div class="demo-head">
+      <div class="tabs" role="tablist" aria-label="Examples">
+        <button role="tab" aria-selected="true" data-i="0"><i></i>MapReduce</button>
+        <button role="tab" aria-selected="false" data-i="1"><i></i>Raft</button>
+        <button role="tab" aria-selected="false" data-i="2"><i></i>Event loop</button>
+      </div>
+      <span class="live">Live, not a video</span>
+    </div>
+    <div class="frame"><iframe id="demo" title="MapReduce, made with Explainer" loading="lazy" allow="fullscreen"></iframe></div>
+    <div class="demo-foot">
+      <p id="caption"></p>
+      <a id="open" href="#">Open the full page ↗</a>
+    </div>
+  </section>
+
+  <section class="why" id="why">
+    <p class="label">Why we made it</p>
+    <div>
+      <p class="big">A drawing of a system can be wrong for years and nobody notices. <span class="soft">So we stopped drawing.</span></p>
+      <div class="body">
+        <p>Explainer writes a tiny copy of the real thing. <strong>MapReduce really counts the words. Raft really elects a leader.</strong> Every number you see came out of that run, and you can rewind it, change it and break it.</p>
+        <p>Then it teaches the way a patient teacher would. You meet the problem before the fix and one idea at a time, and just before the interesting part it stops to ask what you think happens next.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="facts">
+    <div><span class="n">01</span><h3>One file</h3><p>Each page is a single HTML file. It opens offline, with no server and no sign-up.</p></div>
+    <div><span class="n">02</span><h3>Nothing made up</h3><p>If a number is on screen, it came from the run or from a paper the page cites.</p></div>
+    <div><span class="n">03</span><h3>Yours to keep</h3><p>MIT licensed. Fork it, teach a class with it, or point it at the idea that stumped you.</p></div>
+  </section>
+
+  <section class="end">
+    <h2>Pick an idea.<br><span class="soft">Watch it work.</span></h2>
+    <div class="cmd"><code><b>/plugin install</b> explainer --marketplace irfanalimd/explainer</code><button type="button" data-copy>Copy</button></div>
+  </section>
+
+  <footer>
+    <span>Made in the open by <a href="https://sites.irfanali.me/">Irfan Ali</a>. MIT license.</span>
+    <nav>
+      <a href="https://github.com/irfanalimd/explainer">GitHub</a>
+      <a href="https://github.com/irfanalimd/explainer#install">Other ways to install</a>
+    </nav>
+  </footer>
+</div>
+
+<script>
+  const BASE = "https://sites.irfanali.me/p/learning/";
+  const EXAMPLES = [
+    { slug: "mapreduce-cluster", name: "MapReduce", caption: "Three machines split a text, count its words and pass the counts along. Try crashing one." },
+    { slug: "raft-consensus", name: "Raft", caption: "Five servers keep one shared log, even when the leader dies or the network splits." },
+    { slug: "javascript-event-loop", name: "The event loop", caption: "One thread, and the order in which your code, promises, timers and repaints get their turn." },
+  ];
+  const frame = document.getElementById("demo");
+  const caption = document.getElementById("caption");
+  const open = document.getElementById("open");
+  const tabs = [...document.querySelectorAll("[role=tab]")];
+
+  function show(i) {
+    const ex = EXAMPLES[i];
+    tabs.forEach((t, k) => t.setAttribute("aria-selected", String(k === i)));
+    frame.src = `${BASE}${ex.slug}.html?embed=1`;
+    frame.title = `${ex.name}, made with Explainer`;
+    caption.textContent = ex.caption;
+    open.href = `${BASE}${ex.slug}.html`;
+  }
+  tabs.forEach((t, i) => t.addEventListener("click", () => show(i)));
+  show(0);
+
+  document.querySelectorAll("[data-copy]").forEach((btn) => btn.addEventListener("click", async () => {
+    const text = btn.previousElementSibling.textContent;
+    try { await navigator.clipboard.writeText(text); }
+    catch {
+      const r = document.createRange(); r.selectNodeContents(btn.previousElementSibling);
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    }
+    btn.textContent = "Copied";
+    setTimeout(() => (btn.textContent = "Copy"), 1600);
+  }));
+</script>
+</body>
+</html>
