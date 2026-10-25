@@ -8,7 +8,12 @@
   <meta property="og:type" content="website">
   <meta property="og:title" content="Explainer · See an idea run.">
   <meta property="og:description" content="An open-source Claude Code skill that builds the idea and teaches you with it, on one page you can rewind and break.">
-  <meta property="og:image" content="https://sites.irfanali.me/explainer/img/mapreduce-cluster.webp">
+  <meta property="og:url" content="https://sites.irfanali.me/explainer/">
+  <meta property="og:image" content="https://sites.irfanali.me/explainer/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Explainer: See an idea run. A small MapReduce run drawn in dots beside the install command.">
+  <meta name="twitter:image" content="https://sites.irfanali.me/explainer/og.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="theme-color" content="#09090a">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='1' y='3' width='28' height='28' rx='8' fill='%230f0f0f'/%3E%3Ctext x='15' y='22' font-family='monospace' font-size='12' font-weight='600' fill='%23fff' text-anchor='middle'%3Eex%3C/text%3E%3Ccircle cx='27' cy='5' r='4' fill='%232b59ff'/%3E%3C/svg%3E">
@@ -29,6 +34,7 @@
   <symbol id="i-copy" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></g></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
   <symbol id="i-book" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5zM20 5.5A1.5 1.5 0 0 0 18.5 4H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path fill="currentColor" d="M8 5.5v13l11-6.5z"/></symbol>
   <symbol id="i-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></g></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></symbol>
 </svg>
@@ -91,6 +97,14 @@
           <a class="icon-btn magnetic gh-hero" href="https://github.com/irfanalimd/explainer" target="_blank" rel="noopener" aria-label="Explainer on GitHub"><svg><use href="#i-gh"/></svg></a>
         </div>
       </div>
+      <form class="try fade-in" id="try" autocomplete="off">
+        <label class="try-label mono" for="try-words">Run your own words</label>
+        <div class="try-row">
+          <input id="try-words" name="words" type="text" maxlength="120" spellcheck="false" placeholder="type a sentence and press enter">
+          <button class="try-go" type="submit" aria-label="Run it"><svg><use href="#i-play"/></svg></button>
+        </div>
+        <p class="try-note mono" id="try-note" role="status"></p>
+      </form>
       <dl class="facts fade-in">
         <div><dt class="mono">You get</dt><dd>One HTML file</dd></div>
         <div><dt class="mono">Runs</dt><dd>Offline, no server</dd></div>

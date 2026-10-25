@@ -248,7 +248,18 @@
     return { words, chunks, slips, cols, outAt, outs, end: last + 3.2 };
   }
   const PLANS = TEXTS.map(plan);
-  const LOOP = PLANS.reduce((a, p) => a + p.end, 0);
+  let LOOP = PLANS.reduce((a, p) => a + p.end, 0);
+  // a visitor's own words go through the same run: up to 12, so every counter has room for its stacks
+  const MAX_WORDS = 12;
+  let custom = false, told = false;
+  function useText(str) {
+    const words = str.toLowerCase().replace(/[^a-z0-9'’]+/g, ' ').split(' ').filter(Boolean).slice(0, MAX_WORDS);
+    PLANS.splice(0, PLANS.length, ...(words.length >= 2 ? [plan(words.join(' '))] : TEXTS.map(plan)));
+    LOOP = PLANS.reduce((a, p) => a + p.end, 0);
+    simT = 0; box.ok = false; custom = words.length >= 2; told = false;
+    if (reduceMotion) { simT = PLANS[0].slips[Math.min(6, PLANS[0].slips.length - 1)].send + .6; draw(); }
+    return words.length >= 2 ? words.length : 0;
+  }
 
   const mapSlot = (m, k) => [MAPS[m].x + ((k % 3) - 1) * .95, BH + .22, MAPS[m].z + (Math.floor(k / 3) - .5) * .95];
   const redSlot = (r, col, lvl) => [REDS[r].x + ((col % 3) - 1) * .95, BH + .22 + lvl * .34, REDS[r].z + (Math.floor(col / 3) - 1) * .95];
@@ -410,6 +421,13 @@
       ctx.globalAlpha = .78 * A; ctx.fillText(val, x + 16 + tw, y - 6 - th * .3); ctx.globalAlpha = 1;
     }
 
+    // a visitor's own words: once every total reaches the output, print them under the field
+    if (custom && !told && counted === P.words.length) {
+      told = true;
+      const note = $('#try-note');
+      if (note) note.textContent = [...P.outs].sort((a, b) => b.n - a.n || (a.w < b.w ? -1 : 1)).map(o => `${o.w} ${o.n}`).join(' · ');
+    }
+
     // the strip above the hero reads the same run
     const phase = t < 1.9 ? 'split' : t < P.slips[0].send ? 'map' : t < P.outAt ? 'shuffle' : counted < P.words.length ? 'reduce' : 'done';
     const hs = flying ?? [...P.slips].reverse().find(x => t >= x.arrive);
@@ -427,6 +445,15 @@
     draw();
     raf = visible && !document.hidden ? requestAnimationFrame(loop) : 0;
   }
+  const form = $('#try'), field = $('#try-words'), note = $('#try-note');
+  if (form) form.addEventListener('submit', e => {
+    e.preventDefault();
+    const n = useText(field.value);
+    note.textContent = n ? `Counting your ${n} words.` : 'Back to the sample sentences.';
+    if (!n) field.value = '';
+    document.getElementById('top').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' });
+  });
+
   resize();
   if (reduceMotion) { simT = PLANS[0].slips[6].send + .6; draw(); return; }
   new IntersectionObserver(([e]) => {
@@ -436,5 +463,5 @@
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && visible && !raf) { prev = 0; raf = requestAnimationFrame(loop); }
   });
-  window.__scene = { seek: s => { simT = s; draw(); }, plans: PLANS };
+  window.__scene = { seek: s => { simT = s; draw(); }, plans: PLANS, use: useText };
 })();

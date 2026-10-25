@@ -228,6 +228,18 @@ em { font-family: var(--serif); font-style: italic; font-weight: 400; letter-spa
 .facts dt { color: var(--text-3); text-transform: uppercase; letter-spacing: .12em; font-size: .64rem; }
 .facts dd { margin: 6px 0 0; font-weight: 500; font-size: .98rem; letter-spacing: -.01em; }
 
+/* run your own words: sits under the run, at the right edge of the hero */
+.hero .wrap { position: relative; }
+.try { position: absolute; right: 24px; bottom: 132px; width: min(360px, 40%); margin: 0; }
+.try-label { display: block; margin-bottom: 8px; color: var(--text-3); text-transform: uppercase; letter-spacing: .14em; font-size: .64rem; }
+.try-row { display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 5px 0 16px; border: 1px solid var(--line-2); border-radius: 999px; background: color-mix(in srgb, var(--card) 80%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); transition: border-color .25s; }
+.try-row:focus-within { border-color: var(--accent); }
+.try-row input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; color: var(--text); font: 400 .82rem var(--mono); }
+.try-row input::placeholder { color: var(--text-3); }
+.try-go { display: grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 50%; background: var(--text); color: var(--bg); cursor: pointer; font-size: 13px; transition: background .25s; }
+.try-go:hover { background: var(--accent); color: #fff; }
+.try-note { min-height: 1.2em; margin: 8px 0 0 16px; color: var(--accent-ink); font-size: .66rem; }
+
 /* hero entrance */
 .js .name .ln > span { transform: translateY(105%); }
 .js .line-in { transform: translateY(115%); }
@@ -401,6 +413,7 @@ a.row:hover .row-go { background: var(--accent); color: #fff; transform: rotate(
 }
 @media (max-width: 860px) {
   .hero { min-height: auto; justify-content: flex-start; padding-top: calc(var(--nav-h) + 300px); }
+  .try { position: static; width: 100%; max-width: 420px; margin-top: 40px; }
   .facts { grid-template-columns: 1fr 1fr; margin-top: 56px; }
   .facts div:nth-child(3) { padding-left: 0; border-left: 0; }
   .facts div:nth-child(n+3) { border-top: 1px solid var(--line); margin-top: 18px; }
