@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DINOv3</title>
+<meta name="description" content="A narrated guided reading of Meta&#x27;s DINOv3 report (Siméoni et al., 2025): curated data, Gram anchoring against dense-feature decay, high-resolution adaptation, distillation into a model family, and what frozen features can do.">
+<meta property="og:title" content="DINOv3">
+<meta property="og:description" content="A narrated guided reading of Meta&#x27;s DINOv3 report (Siméoni et al., 2025): curated data, Gram anchoring against dense-feature decay, high-resolution adaptation, distillation into a model family, and what frozen features can do.">
+<meta property="og:image" content="media/dinov3-self-supervised-vision-foundation-model.jpg">
+<style>
+  :root { --bg:#f6f5f2; --fg:#16181d; --muted:#6b6f78; --rule:#dcdad4; --accent:#b8860b; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0b0d12; --fg:#ece8e1; --muted:#8a8f98; --rule:#23272f; --accent:#ffd45a; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:16px/1.55 -apple-system, BlinkMacSystemFont, "Avenir Next", "Segoe UI", sans-serif; }
+  main { max-width:1040px; margin:0 auto; padding:40px 16px 64px; }
+  h1 { font:400 clamp(28px,4.5vw,44px)/1.15 "Iowan Old Style", "Palatino", Georgia, serif; margin:0 0 8px; }
+  .lede { color:var(--muted); margin:0 0 24px; max-width:68ch; }
+  video { width:100%; aspect-ratio:16/9; background:#000; border-radius:10px; display:block; }
+  h2 { font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:28px 0 8px; font-weight:600; }
+  ol { list-style:none; padding:0; margin:0; display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:2px 24px; }
+  button { all:unset; cursor:pointer; display:flex; gap:12px; padding:6px 0; border-bottom:1px solid var(--rule); width:100%; }
+  button:hover { color:var(--accent); }
+  .t { font-variant-numeric:tabular-nums; color:var(--muted); min-width:3.2em; }
+  footer { margin-top:32px; color:var(--muted); font-size:13px; }
+  a { color:inherit; }
+</style>
+</head>
+<body>
+<main>
+  <h1>DINOv3</h1>
+  <p class="lede">A narrated guided reading of Meta&#x27;s DINOv3 report (Siméoni et al., 2025): curated data, Gram anchoring against dense-feature decay, high-resolution adaptation, distillation into a model family, and what frozen features can do.</p>
+  <video id="v" controls preload="metadata" playsinline poster="media/dinov3-self-supervised-vision-foundation-model.jpg">
+    <source src="media/dinov3-self-supervised-vision-foundation-model.mp4" type="video/mp4">
+  </video>
+  <h2>Chapters</h2>
+  <ol>
+      <li><button data-t="0.00"><span class="t">0:00</span>Opening</button></li>
+      <li><button data-t="51.41"><span class="t">0:51</span>Learning without labels</button></li>
+      <li><button data-t="128.39"><span class="t">2:08</span>Choosing the data</button></li>
+      <li><button data-t="200.56"><span class="t">3:20</span>The self-distillation recipe</button></li>
+      <li><button data-t="283.34"><span class="t">4:43</span>When dense features decay</button></li>
+      <li><button data-t="366.59"><span class="t">6:06</span>Gram anchoring</button></li>
+      <li><button data-t="450.46"><span class="t">7:30</span>Higher resolution</button></li>
+      <li><button data-t="535.61"><span class="t">8:55</span>A family of models</button></li>
+      <li><button data-t="617.46"><span class="t">10:17</span>Frozen features, measured</button></li>
+      <li><button data-t="703.85"><span class="t">11:43</span>The same recipe from orbit</button></li>
+      <li><button data-t="784.60"><span class="t">13:04</span>What it means</button></li>
+  </ol>
+  <footer>Siméoni et al., “DINOv3”, Meta AI Research technical report 2025  ·  arXiv:2508.10104 · Paper excerpts shown briefly with attribution for commentary  ·  Music: Kevin MacLeod (incompetech.com), CC BY 4.0</footer>
+</main>
+<script>
+  const v = document.getElementById("v");
+  document.querySelectorAll("button[data-t]").forEach(b =>
+    b.addEventListener("click", () => { v.currentTime = +b.dataset.t; v.play(); window.scrollTo({top: v.offsetTop - 16, behavior: "smooth"}); }));
+</script>
+</body>
+</html>
