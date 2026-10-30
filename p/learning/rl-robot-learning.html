@@ -7291,6 +7291,689 @@ ANS = re.compile(<span class="s">r"&lt;answer&gt;\s*(-?\d+)\s*&lt;/answer&gt;"</
 });
 
 </script>
+<script>/* 09-agentic.js */
+/* Module 09: Multi-turn agentic RL & environment design. Every string with HTML/TeX/backslashes is String.raw. */
+RL.module({
+  id: "agentic",
+  num: 9,
+  part: "B",
+  title: "Multi-turn agentic RL & environment design",
+  short: "Agentic RL",
+  subtitle: String.raw`From single answers to episodes: the LLM acts one turn at a time, the environment answers, and the reward arrives at the end. How to build the Phase 1 text environment, what to mask, how to assign credit across turns, how to schedule difficulty, and how to evaluate against an optimal planner.`,
+  minutes: 95,
+  objectives: [
+    "Formulate multi-turn LLM interaction as an MDP/POMDP at the turn level and at the token level, and say which quantities live at which level",
+    "Design a symbolic text environment (PDDL vs Python scene graph) with clear observation/action formats, useful error messages, random failures and hidden objects",
+    "Build the token sequence and loss mask for a multi-turn trajectory, masking environment tokens, without re-tokenisation drift",
+    "Compare outcome-only and per-step rewards, use potential-based shaping safely, and explain turn-level credit assignment (GRPO trajectory advantages vs turn-level GAE)",
+    "Design a curriculum on plan length and explain why training only on hard tasks stalls",
+    "Choose rollout infrastructure (TRL vs verl, vLLM, async rollouts, LoRA on one 24 GB GPU)",
+    "Evaluate a planner properly: goal success, validity, plan length vs an optimal planner, held-out task splits",
+    "Explain what RL fixes that SFT on expert plans doesn't (recovery, replanning, exposure bias) and the usual failure modes",
+  ],
+  sections: [
+    /* ------------------------------------------------------------------ 1 */
+    {
+      id: "multi-turn-mdp",
+      title: "The multi-turn MDP",
+      html: String.raw`
+<p>In <a href="#/m/grpo">Module 08</a> an episode was one prompt and one completion. In Phase 1 an episode is a <b>conversation with an environment</b>: the model emits an action (one turn), the environment executes it and returns the new observation or an error, and this repeats until the goal is reached, the model declares it is done, or a turn limit hits. Reward is (mostly) at the end.</p>
+<figure><svg viewBox="0 0 720 150" role="img" aria-label="multi-turn loop">
+<g font-size="13" fill="currentColor">
+<rect x="10" y="40" width="120" height="60" rx="8" fill="none" stroke="var(--line-2)"/><text x="70" y="66" text-anchor="middle">task + obs₀</text><text x="70" y="84" text-anchor="middle" fill="var(--muted)">(masked)</text>
+<rect x="160" y="40" width="110" height="60" rx="8" fill="none" stroke="var(--accent)" stroke-width="2"/><text x="215" y="66" text-anchor="middle">action a₁</text><text x="215" y="84" text-anchor="middle" fill="var(--accent)">(trained)</text>
+<rect x="300" y="40" width="110" height="60" rx="8" fill="none" stroke="var(--line-2)"/><text x="355" y="66" text-anchor="middle">obs₁ / error</text><text x="355" y="84" text-anchor="middle" fill="var(--muted)">(masked)</text>
+<rect x="440" y="40" width="110" height="60" rx="8" fill="none" stroke="var(--accent)" stroke-width="2"/><text x="495" y="66" text-anchor="middle">action a₂</text><text x="495" y="84" text-anchor="middle" fill="var(--accent)">(trained)</text>
+<text x="590" y="75" text-anchor="middle">…</text>
+<rect x="620" y="40" width="90" height="60" rx="8" fill="none" stroke="var(--orange)" stroke-width="2"/><text x="665" y="66" text-anchor="middle">reward R</text><text x="665" y="84" text-anchor="middle" fill="var(--orange)">(end)</text>
+<path d="M130 70 H158 M270 70 H298 M410 70 H438 M550 70 H575" stroke="currentColor" fill="none"/>
+<text x="360" y="130" text-anchor="middle" fill="var(--muted)">one sequence of tokens; only the model's own tokens get gradient</text>
+</g></svg><figcaption>A multi-turn episode is one long token sequence that alternates model turns and environment turns.</figcaption></figure>
+<h3>Two levels of MDP</h3>
+<div class="grid2">
+<div><h4>Turn level (the "agent" view)</h4><ul><li>State $s_k$: everything the model has seen before turn $k$ (task, all past actions and observations)</li><li>Action $a_k$: a whole turn of text, e.g. <code>open fridge</code> (possibly with reasoning before it)</li><li>Transition: the environment's executor (stochastic if actions can fail)</li><li>Reward $r_k$: 0 or small step terms, plus the outcome at the end</li></ul></div>
+<div><h4>Token level (the "LLM" view)</h4><ul><li>State: the token prefix</li><li>Action: the next token</li><li>Transitions are deterministic (append the token) <em>inside</em> a model turn, and stochastic at turn boundaries, where the environment appends a whole block of tokens the policy did not choose</li><li>Policy log-prob of a turn $=\sum$ of its token log-probs</li></ul></div>
+</div>
+<p>The gradient is always computed at the token level, but rewards, values and credit are most naturally defined at the turn level. The bridge: a turn's advantage $\hat A_k$ is broadcast to all tokens of that turn, and environment tokens get no gradient at all.</p>
+<div class="formula"><span class="label">Multi-turn policy gradient (turn-level advantage, token-level log-probs)</span>
+$$\nabla_\theta J = \mathbb{E}\Big[\sum_{k=1}^{K} \hat A_k \sum_{t \in \text{turn }k} \nabla_\theta\log\pi_\theta(y_t \mid y_{\lt t})\Big]$$</div>
+<p>It is a POMDP: hidden objects inside closed containers are part of the true state but not of the observation. The model's "belief state" is its context window, which is why the conversation history (or a summary of it) matters.</p>
+<h3>Trajectory-level GRPO</h3>
+<p>The simplest extension of GRPO: from the same initial state (same task, same seed for the environment's hidden layout), roll out $G$ full episodes, score each by its final reward $R_i$, compute $\hat A_i = R_i - \bar R$ (optionally divided by the std), and apply that advantage to every model token of episode $i$. This is what most open multi-turn agent RL frameworks start from. Its weakness is credit assignment: a 12-turn episode that failed because of one bad turn punishes all 12 turns equally. Lesson 4 is about doing better.</p>
+<div class="callout key"><b>Phase 1 in one sentence</b><p>Qwen (1.5–4B, LoRA) gets the task and the current observation, outputs exactly one action per turn, your executor applies it (sometimes it fails at random), and at the end you reward goal success. Everything in this module is a decision you must make about that loop.</p></div>
+<div class="callout interview"><b>What interviewers ask</b><p>"How is multi-turn RL different from single-turn RLHF?" Environment tokens appear inside the sequence and must be masked; the transition is stochastic and partially observed; rewards are delayed across turns so credit assignment matters; episodes have variable length and rollouts are bottlenecked by environment latency and growing context; and the same model must handle its own earlier mistakes (recovery), which offline SFT data rarely shows.</p></div>`,
+    },
+    /* ------------------------------------------------------------------ 2 */
+    {
+      id: "env-design",
+      title: "Designing the text environment",
+      html: String.raw`
+<p>Your environment <em>is</em> your task specification. A sloppy environment produces a model that is good at your bugs. Design it like an API that a careful junior engineer would use.</p>
+<h3>PDDL vs a Python scene graph</h3>
+<div class="grid2">
+<div><h4>PDDL + a planner</h4><ul><li>Standard language for classical planning: a <b>domain</b> (predicates, actions with preconditions/effects) and a <b>problem</b> (objects, initial state, goal)</li><li>Off-the-shelf optimal planners (Fast Downward with an admissible heuristic) give verified optimal plans for SFT data and evaluation</li><li>Validation tools check plan validity</li><li>Awkward for stochastic failures, hidden information and rich error messages: you end up wrapping it in Python anyway</li></ul></div>
+<div><h4>Python scene graph</h4><ul><li>Objects, locations and containers as a graph; actions are Python functions that check preconditions and mutate state</li><li>Easy to add random failures, partial observability, custom error messages, distractors</li><li>Fast (microseconds per step), trivially parallel</li><li>You need your own planner: BFS or A* over the (small) symbolic state space is enough for optimal plans in toy domains</li></ul></div>
+</div>
+<p>A good compromise: a Python scene graph as the source of truth, with an exporter to PDDL if you want Fast Downward for larger tasks. For Phase 1-sized problems (a handful of rooms, containers and objects), BFS over the deterministic version of the domain is fast and gives exact optimal plan lengths.</p>
+<h3>Observation and action formats</h3>
+<ul>
+<li><b>One action per turn, a tiny grammar</b>: <code>go &lt;location&gt;</code>, <code>open &lt;container&gt;</code>, <code>pick &lt;object&gt;</code>, <code>place &lt;object&gt;</code>, <code>done</code>. Optionally allow reasoning first, then the action in a tag (<code>&lt;action&gt;open fridge&lt;/action&gt;</code>), and parse only the tag.</li>
+<li><b>Observations describe only what the robot can see</b>: its location, what is visible there, what it holds, and the outcome of the last action. Decide whether to show the full history (the model must track state itself) or a fresh state description each turn (shorter context, easier, less realistic).</li>
+<li><b>Error messages are part of the task</b>: "You can't pick the apple: the fridge is closed" teaches recovery; "Invalid action" teaches nothing. Distinguish <em>parse errors</em> (not in the grammar), <em>precondition failures</em> (valid action, wrong state) and <em>stochastic failures</em> ("the apple slipped from the gripper").</li>
+<li><b>Turn limit</b> and a <code>done</code> action. Decide what happens on invalid actions: consume a turn (recommended) and maybe a small penalty.</li>
+</ul>
+<h3>Making it hard in the right way</h3>
+<ul>
+<li><b>Random action failures</b> (e.g. pick fails with probability 0.1–0.3): the expert plan no longer works open-loop, so the model must read the observation and retry. This is what forces genuine closed-loop behaviour.</li>
+<li><b>Hidden objects in containers</b>: the goal mentions an apple that isn't visible; the model must search (open the fridge, the drawer…). This is partial observability, and an optimal policy now has to explore.</li>
+<li><b>Distractors</b>: irrelevant objects and containers, so search order matters.</li>
+<li><b>Procedural generation</b> with seeds: layouts, object placements, goals. Seeds make GRPO groups possible (same seed = same hidden layout for all $G$ episodes) and make evaluation reproducible.</li>
+</ul>
+<div data-widget="toyEnv" data-title="Interactive · a playable toy kitchen environment"></div>
+<h3>A Python skeleton</h3>
+<pre><code><span class="c"># env.py: symbolic kitchen with containers, hidden objects and stochastic failures</span>
+<span class="k">import</span> random, re
+<span class="k">from</span> collections <span class="k">import</span> deque
+
+LOCS = [<span class="s">"counter"</span>, <span class="s">"table"</span>, <span class="s">"shelf"</span>, <span class="s">"fridge"</span>, <span class="s">"drawer"</span>]
+CONTAINERS = {<span class="s">"fridge"</span>, <span class="s">"drawer"</span>}
+GRAMMAR = re.compile(<span class="s">r"^(go|open|close|pick|place|look|done)(?:\s+(\w+))?$"</span>)
+
+<span class="k">class</span> KitchenEnv:
+    <span class="k">def</span> __init__(self, objects=(<span class="s">"apple"</span>, <span class="s">"cup"</span>, <span class="s">"sponge"</span>), p_fail=<span class="n">0.2</span>, max_turns=<span class="n">20</span>):
+        self.objects, self.p_fail, self.max_turns = objects, p_fail, max_turns
+
+    <span class="k">def</span> reset(self, seed, goal_objs=(<span class="s">"apple"</span>, <span class="s">"cup"</span>), goal_loc=<span class="s">"table"</span>):
+        self.rng = random.Random(seed)                   <span class="c"># same seed: same hidden layout AND same failure stream</span>
+        self.pos = {o: self.rng.choice(LOCS) <span class="k">for</span> o <span class="k">in</span> self.objects}
+        self.opened = {c: <span class="k">False</span> <span class="k">for</span> c <span class="k">in</span> CONTAINERS}
+        self.robot, self.hand, self.turn = <span class="s">"counter"</span>, <span class="k">None</span>, <span class="n">0</span>
+        self.goal = {o: goal_loc <span class="k">for</span> o <span class="k">in</span> goal_objs}
+        self.n_invalid = <span class="n">0</span>
+        task = f<span class="s">"Task: put the {' and the '.join(goal_objs)} on the {goal_loc}."</span>
+        <span class="k">return</span> task + <span class="s">"\n"</span> + self._look()
+
+    <span class="k">def</span> _visible(self, loc):
+        <span class="k">if</span> loc <span class="k">in</span> CONTAINERS <span class="k">and</span> <span class="k">not</span> self.opened[loc]:
+            <span class="k">return</span> []                                     <span class="c"># hidden: partial observability</span>
+        <span class="k">return</span> [o <span class="k">for</span> o, l <span class="k">in</span> self.pos.items() <span class="k">if</span> l == loc]
+
+    <span class="k">def</span> _look(self):
+        s = f<span class="s">"You are at the {self.robot}. "</span>
+        <span class="k">if</span> self.robot <span class="k">in</span> CONTAINERS:
+            s += f<span class="s">"The {self.robot} is {'open' if self.opened[self.robot] else 'closed'}. "</span>
+        vis = self._visible(self.robot)
+        s += (<span class="s">"You see: "</span> + <span class="s">", "</span>.join(vis) + <span class="s">". "</span>) <span class="k">if</span> vis <span class="k">else</span> <span class="s">"You see nothing you can take. "</span>
+        <span class="k">return</span> s + f<span class="s">"You are holding {self.hand or 'nothing'}."</span>
+
+    <span class="k">def</span> success(self):
+        <span class="k">return</span> all(self.pos[o] == l <span class="k">for</span> o, l <span class="k">in</span> self.goal.items())
+
+    <span class="k">def</span> step(self, text):
+        <span class="s">"""text: the model's action string. Returns obs, reward, done, info."""</span>
+        self.turn += <span class="n">1</span>
+        obs, ok = self._execute(text.strip().lower())
+        self.n_invalid += <span class="k">not</span> ok
+        done = self.success() <span class="k">or</span> text.strip() == <span class="s">"done"</span> <span class="k">or</span> self.turn &gt;= self.max_turns
+        reward = float(self.success()) <span class="k">if</span> done <span class="k">else</span> <span class="n">0.0</span>   <span class="c"># outcome-only by default</span>
+        <span class="k">return</span> obs, reward, done, {<span class="s">"valid"</span>: ok, <span class="s">"turn"</span>: self.turn}
+
+    <span class="k">def</span> _execute(self, a):
+        m = GRAMMAR.match(a)
+        <span class="k">if</span> <span class="k">not</span> m:
+            <span class="k">return</span> <span class="s">"Error: unknown command. Use: go X, open X, close X, pick X, place X, look, done."</span>, <span class="k">False</span>
+        verb, arg = m.groups()
+        <span class="k">if</span> verb == <span class="s">"look"</span>: <span class="k">return</span> self._look(), <span class="k">True</span>
+        <span class="k">if</span> verb == <span class="s">"done"</span>: <span class="k">return</span> <span class="s">"Episode ended."</span>, <span class="k">True</span>
+        <span class="k">if</span> verb == <span class="s">"go"</span>:
+            <span class="k">if</span> arg <span class="k">not</span> <span class="k">in</span> LOCS: <span class="k">return</span> f<span class="s">"Error: there is no '{arg}'. Locations: {', '.join(LOCS)}."</span>, <span class="k">False</span>
+            self.robot = arg; <span class="k">return</span> self._look(), <span class="k">True</span>
+        <span class="k">if</span> verb <span class="k">in</span> (<span class="s">"open"</span>, <span class="s">"close"</span>):
+            <span class="k">if</span> arg <span class="k">not</span> <span class="k">in</span> CONTAINERS: <span class="k">return</span> f<span class="s">"Error: you can't {verb} the {arg}."</span>, <span class="k">False</span>
+            <span class="k">if</span> self.robot != arg: <span class="k">return</span> f<span class="s">"Error: you are not at the {arg}."</span>, <span class="k">False</span>
+            <span class="k">if</span> verb == <span class="s">"open"</span> <span class="k">and</span> self.rng.random() &lt; self.p_fail / <span class="n">2</span>:
+                <span class="k">return</span> f<span class="s">"The {arg} is stuck and did not open."</span>, <span class="k">True</span>   <span class="c"># valid action, stochastic failure</span>
+            self.opened[arg] = (verb == <span class="s">"open"</span>); <span class="k">return</span> self._look(), <span class="k">True</span>
+        <span class="k">if</span> verb == <span class="s">"pick"</span>:
+            <span class="k">if</span> self.hand: <span class="k">return</span> f<span class="s">"Error: your hand is full (holding {self.hand})."</span>, <span class="k">False</span>
+            <span class="k">if</span> arg <span class="k">not</span> <span class="k">in</span> self._visible(self.robot): <span class="k">return</span> f<span class="s">"Error: you don't see a {arg} here."</span>, <span class="k">False</span>
+            <span class="k">if</span> self.rng.random() &lt; self.p_fail:
+                <span class="k">return</span> f<span class="s">"The {arg} slipped from the gripper. You are holding nothing."</span>, <span class="k">True</span>
+            self.hand, self.pos[arg] = arg, <span class="s">"hand"</span>; <span class="k">return</span> self._look(), <span class="k">True</span>
+        <span class="k">if</span> verb == <span class="s">"place"</span>:
+            <span class="k">if</span> self.hand != arg: <span class="k">return</span> f<span class="s">"Error: you are not holding a {arg}."</span>, <span class="k">False</span>
+            <span class="k">if</span> self.robot <span class="k">in</span> CONTAINERS <span class="k">and</span> <span class="k">not</span> self.opened[self.robot]:
+                <span class="k">return</span> f<span class="s">"Error: the {self.robot} is closed."</span>, <span class="k">False</span>
+            self.pos[arg], self.hand = self.robot, <span class="k">None</span>; <span class="k">return</span> self._look(), <span class="k">True</span>
+        <span class="k">return</span> <span class="s">"Error: missing argument."</span>, <span class="k">False</span>
+
+<span class="k">def</span> optimal_plan_length(env):
+    <span class="s">"""BFS over the deterministic, fully observed version (an oracle that knows the layout)."""</span>
+    start = (env.robot, env.hand, tuple(sorted(env.pos.items())), tuple(sorted(env.opened.items())))
+    q, seen = deque([(start, <span class="n">0</span>)]), {start}
+    <span class="k">while</span> q:
+        s, d = q.popleft()
+        robot, hand, pos, opened = s[<span class="n">0</span>], s[<span class="n">1</span>], dict(s[<span class="n">2</span>]), dict(s[<span class="n">3</span>])
+        <span class="k">if</span> all(pos[o] == l <span class="k">for</span> o, l <span class="k">in</span> env.goal.items()):
+            <span class="k">return</span> d
+        <span class="k">for</span> nxt <span class="k">in</span> successors(robot, hand, pos, opened):   <span class="c"># same preconditions as _execute, no failures</span>
+            <span class="k">if</span> nxt <span class="k">not</span> <span class="k">in</span> seen:
+                seen.add(nxt); q.append((nxt, d + <span class="n">1</span>))
+    <span class="k">return</span> <span class="k">None</span>
+</code></pre>
+<p>(<code>successors</code> enumerates go/open/pick/place moves with the same preconditions as <code>_execute</code>; write it so the planner and the executor share one precondition function, otherwise they drift apart.) Note the BFS oracle knows where hidden objects are, so its length is a <em>lower bound</em> for any agent that has to search. Lesson 7 discusses fairer baselines.</p>
+<div class="callout warn"><b>Environment bugs become model behaviour</b><p>If <code>done</code> isn't checked against the goal, the model learns to say <code>done</code> immediately when the success rate is low (no reward either way, shorter episodes). If the parser accepts "pick apple and place it on the table" as <code>pick apple</code>, the model learns to emit run-on actions. Unit-test the executor with scripted episodes before training, and replay a few model trajectories by hand every day.</p></div>
+<div class="callout tip"><b>Seeds and the RNG</b><p>Use one RNG per episode seeded from the task seed for the layout, and decide deliberately whether the <em>failure</em> stream is shared across the GRPO group. Sharing it (same seed) means differences in reward come only from the policy's choices, which lowers advantage variance; independent failure streams make the group baseline average over luck too. Both are defensible; log which one you used.</p></div>`,
+    },
+    /* ------------------------------------------------------------------ 3 */
+    {
+      id: "masking",
+      title: "Building the sequence: loss masks and tokenisation",
+      html: String.raw`
+<p>A multi-turn rollout produces one token sequence: system prompt and task, then alternating assistant turns and environment turns (as "user" or "tool" messages in the chat template). The <b>loss mask</b> marks which tokens get policy gradient: only the tokens the policy generated.</p>
+<div data-widget="maskViz" data-title="Interactive · multi-turn loss mask and per-turn credit"></div>
+<h3>Why mask environment tokens</h3>
+<ul>
+<li>The policy did not choose them. They are part of the transition, not the action. Including $\log\pi_\theta(\text{obs tokens})$ in the policy gradient means "reinforce the model for <em>predicting</em> the observation it got": in a successful episode you'd teach the model to expect observations that happened to occur, which is meaningless as a policy update and can teach it to hallucinate environment responses.</li>
+<li>Importance ratios are only defined for tokens sampled from $\pi_{\theta_\text{old}}$.</li>
+<li>The KL to the reference should also be computed only on policy tokens.</li>
+</ul>
+<h3>Construct ids incrementally; don't re-tokenise</h3>
+<p>The tempting implementation: keep the conversation as a list of messages, call <code>apply_chat_template</code> on the whole thing after the episode, and compute a mask from message boundaries. Two problems:</p>
+<ol>
+<li><b>Tokenisation drift</b>: the tokens the model sampled may not equal the tokens you get by re-tokenising the decoded text (BPE merges across boundaries, whitespace normalisation). Then the logprobs you train on are for a sequence the policy never generated, and the first-step ratio is not 1.</li>
+<li><b>Template edits</b>: some chat templates rewrite past assistant turns (for example dropping earlier reasoning blocks). The training sequence must be exactly the sequence the policy conditioned on when it sampled each turn.</li>
+</ol>
+<pre><code><span class="c"># Build ids and mask as you go. The policy's own tokens are copied verbatim from the sampler.</span>
+<span class="k">def</span> run_episode(env, seed, generate, tok, max_turns=<span class="n">20</span>):
+    obs = env.reset(seed)
+    msgs = [{<span class="s">"role"</span>: <span class="s">"system"</span>, <span class="s">"content"</span>: SYSTEM}, {<span class="s">"role"</span>: <span class="s">"user"</span>, <span class="s">"content"</span>: obs}]
+    ids = tok.apply_chat_template(msgs, add_generation_prompt=<span class="k">True</span>)   <span class="c"># prompt: mask 0</span>
+    mask, turn_id = [<span class="n">0</span>] * len(ids), [-<span class="n">1</span>] * len(ids)
+    rewards = []
+    <span class="k">for</span> k <span class="k">in</span> range(max_turns):
+        act_ids = generate(ids)                    <span class="c"># sampled token ids, ending with the end-of-turn token</span>
+        ids += act_ids; mask += [<span class="n">1</span>] * len(act_ids); turn_id += [k] * len(act_ids)
+        action = tok.decode(act_ids, skip_special_tokens=<span class="k">True</span>)
+        obs, r, done, info = env.step(parse_action(action))
+        rewards.append(r)
+        <span class="k">if</span> done:
+            <span class="k">break</span>
+        <span class="c"># environment turn, rendered with the template's user/tool wrapper, plus the next generation prompt</span>
+        env_ids = render_env_turn(tok, obs)        <span class="c"># e.g. template for one user message + assistant header</span>
+        ids += env_ids; mask += [<span class="n">0</span>] * len(env_ids); turn_id += [-<span class="n">1</span>] * len(env_ids)
+    <span class="k">return</span> ids, mask, turn_id, rewards          <span class="c"># turn_id lets you broadcast per-turn advantages</span>
+</code></pre>
+<div class="callout tip"><b>Check it</b><p>Decode <code>ids</code> with the mask highlighted for a few episodes and eyeball it: every trained span must start right after the assistant header and end with the end-of-turn token; nothing from the environment may be highlighted. Then, with one update per batch, verify the training forward pass reproduces the sampler's logprobs (ratio ≈ 1).</p></div>
+<h3>Context length</h3>
+<p>The sequence grows every turn: 20 turns × (50-token action + 80-token observation) is already ~2.6k tokens before any reasoning. Options: (a) full history (most faithful, most expensive, attention cost grows quadratically); (b) a sliding window of the last $m$ turns plus the task; (c) environment-provided state summary each turn, which makes the problem closer to fully observed. If you use (b) or (c), each turn is conditioned on a <em>different</em> prompt, so you train each turn as its own (prompt, completion) pair, with the trajectory's advantage. That is also how many frameworks implement multi-turn RL internally.</p>
+<div class="callout warn"><b>Classic bug</b><p>Truncating long episodes at a max sequence length and then computing the reward as failure. The model is punished for a context-length limit it can't see. Either limit turns (visible to the model), or mask truncated episodes out of the loss, the multi-turn version of DAPO's overlong filtering.</p></div>
+<div class="callout interview"><b>What interviewers ask</b><p>"What do you mask in multi-turn RL, and why?" Everything except the policy's own sampled tokens: system/task prompt, environment observations and tool outputs, template wrappers, padding. Because the policy gradient and the importance ratio are only defined for actions the policy took; training on observation tokens is supervised learning on the environment's outputs, which the policy does not control.</p></div>`,
+    },
+    /* ------------------------------------------------------------------ 4 */
+    {
+      id: "credit",
+      title: "Credit assignment: outcome vs per-step rewards",
+      html: String.raw`
+<p>The outcome reward says whether the episode succeeded, not which turn mattered. Your options, from simplest to most involved:</p>
+<h3>1. Outcome-only, trajectory-level advantage</h3>
+<p>$\hat A_i = R_i - \bar R$ over the $G$ episodes of the group, broadcast to every model token. Unbiased, no critic, robust to reward hacking (there's only one thing to hack: the goal check). Weak credit assignment: the useless <code>look</code> in turn 2 of a successful episode is reinforced as much as the crucial <code>open fridge</code>. With enough samples it averages out, but the variance grows with episode length.</p>
+<h3>2. Per-step (process) rewards</h3>
+<p>Add rewards for intermediate events: −0.05 for an invalid action, +0.2 when a goal object is placed correctly, a small per-turn cost for length. Then the turn-level return-to-go $G_k = \sum_{j\ge k}\gamma^{j-k} r_j$ gives each turn its own credit. Risks:</p>
+<ul>
+<li><b>Changing the optimal policy</b>. A reward for "opening a container" can be farmed (open, close, open…). A large invalid-action penalty can make the model so cautious it stops exploring or says <code>done</code> early.</li>
+<li><b>Potential-based shaping is safe</b> (Ng et al., 1999): $F(s,s') = \gamma\Phi(s') - \Phi(s)$ for any potential $\Phi$ leaves the optimal policy unchanged. Example $\Phi(s) = $ number of goal objects in place. Placing an object gives $+1$, picking it back up gives $-1$: no farming possible. With $\gamma = 1$ the shaped return telescopes to $R + \Phi(s_K) - \Phi(s_0)$.</li>
+<li>Per-step rewards should be computed by the <em>environment</em> from symbolic state, not by an LLM judge, to stay verifiable.</li>
+</ul>
+<h3>3. Turn-level critic (PPO)</h3>
+<p>Learn $V_\phi$ at the start of each model turn (a value head reading the last token of the context before the turn). Then turn-level TD errors $\delta_k = r_k + \gamma V(s_{k+1}) - V(s_k)$ and GAE over turns give per-turn advantages, broadcast to the tokens of each turn. This is the "PPO with a learned value head" arm of the Phase 1 comparison (<a href="#/m/grpo/grpo-vs-ppo">Module 08</a>). Turn-level (rather than token-level) GAE is the important choice: token-level GAE with $\gamma,\lambda&lt;1$ would discount rewards by the number of <em>tokens</em> generated, which penalises verbose turns for no reason. Hierarchical approaches such as ArCHer combine a turn-level critic with a token-level policy.</p>
+<h3>4. Monte Carlo per-turn baselines</h3>
+<p>Because your environment is a simulator, you can restore any intermediate state and roll out several continuations from it. The average return from turn $k$'s state is an unbiased value estimate: GRPO-style baselines at every turn, without a learned critic. Expensive (more rollouts) but exact, and cheap when the environment is a Python object you can deep-copy.</p>
+<div class="formula"><span class="label">Turn-level advantages, three ways</span>
+$$\hat A_k^\text{outcome} = R - \bar R,\qquad \hat A_k^\text{per-step} = \sum_{j\ge k} r_j - b_k,\qquad \hat A_k^\text{GAE} = \sum_{j\ge k} (\gamma\lambda)^{j-k}\delta_j$$</div>
+<div class="callout example"><b>Worked example</b><p>Episode: <code>go fridge</code> (valid), <code>pick apple</code> (error: fridge closed), <code>open fridge</code>, <code>pick apple</code>, <code>go table</code>, <code>place apple</code>: success, $R=1$. Group mean $\bar R = 0.4$. Outcome-only: every turn gets $+0.6$, including the error. Per-step with $-0.1$ for invalid actions and the outcome at the end ($\gamma=1$, baseline 0.4): returns-to-go are $0.9, 0.9, 1.0, 1.0, 1.0, 1.0$; minus the baseline 0.4 that is $0.5, 0.5, 0.6, 0.6, 0.6, 0.6$, so the error turn (and every turn before it) gets slightly less credit than the turns after it. With per-turn baselines (a critic or MC rollouts from each turn's state), the error turn's advantage can become negative, because the state after the error is worth less than the state before it. The mask/credit widget above shows these numbers.</p></div>
+<div class="callout tip"><b>The Phase 1 experiment: outcome-only vs per-step</b><p>Keep everything else fixed. Report success, validity (invalid actions per episode), plan length ratio vs optimal, and for the per-step arm, check for reward hacking: does the shaped return go up while success doesn't? Expected result in toy domains: per-step rewards speed up early learning and reduce invalid actions; outcome-only catches up and is less hackable. Your result may differ; that is why you run it.</p></div>
+<div class="callout interview"><b>What interviewers ask</b><p>"Why not just give a reward for every correct step?" Because "correct step" needs a definition, and any definition that isn't potential-based can change the optimal policy and be farmed. Outcome rewards are sparse but honest. If you add steps, make them potential-based, small, and computed from symbolic state, and watch the gap between shaped return and true success.</p></div>`,
+    },
+    /* ------------------------------------------------------------------ 5 */
+    {
+      id: "curriculum",
+      title: "Curriculum on plan length",
+      html: String.raw`
+<p>GRPO learns only from groups with mixed outcomes (<a href="#/m/grpo/objective">Module 08</a>). If the policy succeeds at each step with probability $s$, a task needing $L$ steps succeeds with roughly $s^L$. With $s = 0.6$ and $L = 10$, $s^L = 0.006$: nearly every group of 8 is all-failure, the advantages are zero, and nothing is learned. With $L = 2$, $s^L = 0.36$: lots of signal. A <b>curriculum</b> schedules task difficulty so that groups stay informative.</p>
+<div class="formula"><span class="label">Probability a group of G is informative (not all-equal), success rate p</span>
+$$P(\text{mixed}) = 1 - p^G - (1-p)^G$$</div>
+<p>This is maximised at $p = 0.5$ and collapses at both ends. A good curriculum keeps the training distribution's success rate in roughly the 20–80% band.</p>
+<h3>Strategies</h3>
+<ul>
+<li><b>Fixed stages</b>: plan length 1–3, then 4–6, then 7–10, advancing at fixed step counts. Simple, but the switch times are guesses.</li>
+<li><b>Success-gated</b>: advance when training success at the current level exceeds a threshold (e.g. 0.7). Keep a fraction of easier tasks in the mix (replay) so earlier skills aren't forgotten.</li>
+<li><b>Adaptive sampling</b>: track per-length (or per-task) success and sample tasks with probability proportional to $p(1-p)$ or to the recent learning progress. DAPO's dynamic sampling is the reactive version of this: oversample, drop the all-same groups.</li>
+<li><b>Reverse curriculum</b> (start from states near the goal): possible in a simulator by starting episodes mid-plan; it shortens the effective horizon without changing the task.</li>
+</ul>
+<div data-widget="curriculum" data-title="Interactive · a toy curriculum simulator"></div>
+<div class="callout warn"><b>What a curriculum can hide</b><p>Plan length is a proxy for difficulty. Long tasks with no hidden objects may be easier than short tasks that require search. Measure difficulty by the SFT model's success rate per task family, not only by optimal plan length. And always evaluate on a fixed held-out set spanning all lengths, never on the current curriculum level.</p></div>
+<div class="callout tip"><b>The Phase 1 experiment</b><p>Three arms with the same compute: (a) uniform over lengths, (b) success-gated curriculum, (c) hardest lengths only. Plot held-out success at long lengths vs generated tokens, and the zero-variance group fraction for each arm. The toy model above predicts (c) stalls when SFT is weak and (b) wins early; whether (a) catches up depends on how strong the SFT start is.</p></div>
+<div class="callout interview"><b>What interviewers ask</b><p>"Your GRPO run on long-horizon tasks shows flat reward. What do you check?" The fraction of zero-variance groups (all-fail), the SFT model's pass@k on those tasks (if pass@64 is 0, RL has nothing to reinforce), the verifier on known-good trajectories, and then reduce difficulty: a curriculum, more samples per group on hard tasks, or better SFT data.</p></div>`,
+    },
+    /* ------------------------------------------------------------------ 6 */
+    {
+      id: "infra",
+      title: "Rollout infrastructure: TRL, verl, vLLM",
+      html: String.raw`
+<p>In LLM RL, generation dominates wall-clock time; in multi-turn RL it is worse, because each episode alternates GPU generation with CPU environment steps, and episodes finish at different times.</p>
+<h3>The pieces</h3>
+<ul>
+<li><b>Inference engine</b>: vLLM (or SGLang) for rollouts: continuous batching, PagedAttention, prefix caching (multi-turn episodes reuse their growing prefix, so prefix caching matters a lot). The trainer must push updated weights (or LoRA adapters) to the engine after each optimiser step.</li>
+<li><b>Environment workers</b>: your Python env is cheap, so run many episodes concurrently and batch their generation requests. Asynchronous rollouts (issue the next turn's request as soon as an episode's environment step returns) keep the GPU busy; synchronous turn-by-turn batching wastes time waiting for the slowest episode.</li>
+<li><b>Trainer</b>: computes logprobs (policy, old, ref), advantages and the update. With LoRA the reference model is the base model with adapters disabled, so you don't need a second copy in memory.</li>
+</ul>
+<div class="grid2">
+<div><h4>TRL</h4><ul><li>Hugging Face library with <code>GRPOTrainer</code> (and others); integrates with PEFT/LoRA and can use vLLM for generation (colocated or as a separate server)</li><li>Easiest to start and to read; single-GPU friendly</li><li>Multi-turn/tool-use support has been evolving: check the current docs for custom rollout hooks before writing your own</li></ul></div>
+<div><h4>verl</h4><ul><li>ByteDance's RL library (the HybridFlow paper): Ray-based, FSDP or Megatron training, vLLM/SGLang rollouts, PPO, GRPO and other algorithms</li><li>Built for scale and throughput; supports multi-turn rollouts with tool calling (check current docs)</li><li>More configuration and moving parts; worth it at multiple GPUs or long multi-turn rollouts</li></ul></div>
+</div>
+<p>For Phase 1 on one 24 GB GPU: a 1.5–4B model with LoRA, vLLM colocated with the trainer (sharing the GPU, with a memory fraction reserved), gradient checkpointing, bf16. A 4B model in bf16 is ~8 GB of weights; vLLM needs KV cache on top; the trainer needs activations. It fits, but tight: start with 1.5B, measure memory and throughput, then scale (<a href="#/m/compute">Module 16</a>). Unsloth is an alternative path for memory-efficient LoRA RL on one GPU.</p>
+<div class="callout tip"><b>Write your own loop first, then switch</b><p>Your Phase 0 GRPO loop extended with <code>run_episode</code> from lesson 3 is a complete multi-turn trainer, with HF <code>generate</code> as a slow but simple sampler. Get correct results at small scale with it, then move to TRL or verl for throughput and compare a few runs to make sure the numbers agree. Disagreements are usually masking, template or aggregation differences.</p></div>
+<div class="callout warn"><b>Off-policy drift in async systems</b><p>Fully asynchronous systems sample with slightly stale weights. The importance ratio corrects this only if you use the logprobs of the policy that actually sampled ($\pi_{\theta_\text{old}}$ = the stale one). Also, vLLM's logprobs differ numerically from the trainer's; most systems recompute old logprobs in the trainer. Keep staleness to at most one or two updates.</p></div>
+<div class="callout interview"><b>What interviewers ask</b><p>"Why is RL for LLMs bottlenecked on generation, and what helps?" Autoregressive decoding is memory-bandwidth-bound and sequential; training is a parallel forward/backward. Helps: a dedicated inference engine with continuous batching and prefix caching, asynchronous rollouts, shorter outputs (format constraints), LoRA weight sync instead of full weights, and filtering zero-variance prompts before spending training compute.</p></div>`,
+    },
+    /* ------------------------------------------------------------------ 7 */
+    {
+      id: "eval",
+      title: "Evaluation, and what RL fixes that SFT doesn't",
+      html: String.raw`
+<h3>Metrics</h3>
+<table><thead><tr><th>metric</th><th>definition</th><th>why</th></tr></thead><tbody>
+<tr><td>goal success</td><td>fraction of episodes ending with the goal satisfied</td><td>the headline number; report with a CI over tasks and seeds</td></tr>
+<tr><td>validity</td><td>fraction of actions that parse and meet preconditions; or episodes with zero invalid actions</td><td>separates "knows the rules" from "solves the task"</td></tr>
+<tr><td>plan length ratio</td><td>agent turns / optimal plan length, on successful episodes</td><td>efficiency; a model that succeeds by wandering scores 2–3×</td></tr>
+<tr><td>recovery rate</td><td>success rate conditioned on at least one failure (random or own error)</td><td>the point of random failures: does the model replan?</td></tr>
+<tr><td>pass@k</td><td>unbiased estimator over $n$ episodes per task</td><td>sharpening vs expanding (<a href="#/m/grpo/passk">Module 08</a>)</td></tr>
+</tbody></table>
+<h3>The optimal-planner baseline, done fairly</h3>
+<p>With stochastic failures and hidden objects, "optimal plan length" needs care:</p>
+<ul>
+<li>The <b>oracle BFS</b> on the deterministic, fully observed state is a lower bound. No agent that must search can match it.</li>
+<li>A fairer reference is a <b>planner with replanning under the same observations</b>: a scripted agent that searches containers in a fixed order (or by expected cost) and replans after each failure, run on the same seeds. Report the agent's length relative to both.</li>
+<li>Compare lengths only on episodes where both succeed, or report success and length jointly.</li>
+</ul>
+<h3>Held-out splits</h3>
+<p>Train/test splits by seed alone test memorisation of nothing; design splits that test generalisation: unseen object/location combinations, unseen numbers of objects, longer plan lengths than in training, a held-out container type, different failure rates. Fix the evaluation seeds and the sampling temperature (greedy and $\tau = 1$ both, labelled).</p>
+<h3>What RL fixes that SFT doesn't</h3>
+<p>SFT on optimal planner traces teaches the model the expert's actions in the expert's states. The expert never makes mistakes, so the training data never shows the states that follow mistakes (covariate shift and exposure bias, the same problem as behaviour cloning, <a href="#/m/il">Module 10</a>). Things RL typically improves, and how to show it:</p>
+<ul>
+<li><b>Recovery</b>: after a random failure or its own error, the SFT model often repeats the failed action or derails. RL trains on its own states, including post-error ones. Show recovery rate before and after.</li>
+<li><b>Search under partial observability</b>: optimal traces from an oracle go straight to the hidden object (the oracle knew where it was), teaching the model to "guess". RL rewards finding it, so it learns to search. Show success on tasks with hidden objects.</li>
+<li><b>Validity</b>: invalid actions waste turns and make success less likely, so RL suppresses them even with outcome-only reward.</li>
+<li><b>Calibration of <code>done</code></b>: SFT models may stop early or never stop; RL ties stopping to the goal check.</li>
+<li><b>Sharpening</b>: higher pass@1 from the same pass@k. Report it honestly as such.</li>
+</ul>
+<p>What RL usually does <em>not</em> fix: actions the SFT model never produces (if pass@64 on a task family is 0, outcome-reward RL has no signal there), and generalisation to rules it never saw.</p>
+<h3>Failure modes to expect</h3>
+<ul>
+<li><b>Done-spam</b> or immediate termination when success is rare.</li>
+<li><b>Action loops</b>: open/close or go/go cycles until the turn limit (watch the plan length ratio and repetition).</li>
+<li><b>Verifier exploits</b>: a goal check that tests the wrong predicate (see <a href="#/m/rlhf">Module 07</a>, the deliberate loophole experiment).</li>
+<li><b>Format collapse</b>: reasoning disappears or balloons; actions drift outside the grammar.</li>
+<li><b>Entropy collapse</b> on a fixed task set: memorised plans per seed. Held-out tasks catch this.</li>
+</ul>
+<div class="callout key"><b>The Phase 1 write-up</b><p>One table: rows = SFT, SFT+GRPO (outcome), SFT+GRPO (per-step), SFT+PPO (value head), curriculum variants; columns = success, validity, length ratio, recovery rate, pass@1 and pass@k, on held-out tasks with CIs over seeds. Then three example trajectories: one where RL recovers and SFT doesn't, one where both fail, one reward hack. That is the "what RL fixed that SFT didn't" deliverable.</p></div>
+<div class="callout interview"><b>What interviewers ask</b><p>"Why do RL on top of SFT instead of more SFT data?" SFT imitates expert states; RL trains on the model's own state distribution and optimises the outcome directly, which fixes recovery and search behaviour that expert data doesn't contain. More SFT data from a planner wouldn't include post-error states unless you inject failures (a DAgger-like fix that is a strong baseline to compare against).</p></div>`,
+    },
+  ],
+  widgets: {
+    /* 1. playable toy env */
+    toyEnv(el, RL) {
+      const LOCS = ["counter", "table", "shelf", "fridge", "drawer"], CONT = ["fridge", "drawer"], OBJS = ["apple", "cup", "sponge"];
+      let seed = 4, pFail = 0.2, S, rng, log, oracle;
+      const ctl = RL.controls(el);
+      const wrap = document.createElement("div");
+      wrap.style.cssText = "display:flex;flex-direction:column;gap:8px;margin-top:6px";
+      const logEl = document.createElement("div");
+      logEl.style.cssText = "font-family:var(--mono, ui-monospace, monospace);font-size:0.85em;line-height:1.45;max-height:260px;overflow:auto;border:1px solid var(--line-2);border-radius:8px;padding:8px;white-space:pre-wrap;word-break:break-word";
+      const row = document.createElement("div"); row.style.cssText = "display:flex;gap:6px;flex-wrap:wrap";
+      const inp = document.createElement("input"); inp.type = "text"; inp.placeholder = "type a command, e.g. go fridge";
+      inp.style.cssText = "flex:1;min-width:150px;padding:5px 8px;border:1px solid var(--line-2);border-radius:6px;background:transparent;color:inherit";
+      const btns = document.createElement("div"); btns.style.cssText = "display:flex;gap:4px;flex-wrap:wrap";
+      row.appendChild(inp); wrap.appendChild(logEl); wrap.appendChild(row); wrap.appendChild(btns); el.appendChild(wrap);
+      const out = RL.readouts(el);
+      const key = s => s.robot + "|" + s.hand + "|" + OBJS.map(o => s.pos[o]).join(",") + "|" + CONT.map(c => s.open[c] ? 1 : 0).join("");
+      const vis = (s, l) => (CONT.includes(l) && !s.open[l]) ? [] : OBJS.filter(o => s.pos[o] === l);
+      const succ = s => s.goal.every(o => s.pos[o] === "table");
+      const clone = s => ({ robot: s.robot, hand: s.hand, pos: { ...s.pos }, open: { ...s.open }, goal: s.goal });
+      const succs = s => {
+        const res = [];
+        for (const l of LOCS) if (l !== s.robot) { const n = clone(s); n.robot = l; res.push(n); }
+        if (CONT.includes(s.robot) && !s.open[s.robot]) { const n = clone(s); n.open[s.robot] = true; res.push(n); }
+        if (!s.hand) for (const o of vis(s, s.robot)) { const n = clone(s); n.hand = o; n.pos[o] = "hand"; res.push(n); }
+        if (s.hand && !(CONT.includes(s.robot) && !s.open[s.robot])) { const n = clone(s); n.pos[s.hand] = s.robot; n.hand = null; res.push(n); }
+        return res;
+      };
+      const bfs = s0 => {
+        const q = [[s0, 0]], seen = new Set([key(s0)]);
+        for (let i = 0; i < q.length && i < 200000; i++) { const [s, d] = q[i]; if (succ(s)) return d; for (const n of succs(s)) { const k = key(n); if (!seen.has(k)) { seen.add(k); q.push([n, d + 1]); } } }
+        return null;
+      };
+      const look = () => {
+        let t = "You are at the " + S.robot + ". ";
+        if (CONT.includes(S.robot)) t += "The " + S.robot + " is " + (S.open[S.robot] ? "open" : "closed") + ". ";
+        const v = vis(S, S.robot); t += v.length ? "You see: " + v.join(", ") + ". " : "You see nothing you can take. ";
+        return t + "You are holding " + (S.hand || "nothing") + ".";
+      };
+      const reset = () => {
+        rng = RL.rng(seed);
+        const pos = {}; for (const o of OBJS) pos[o] = LOCS[Math.floor(rng() * LOCS.length)];
+        if (OBJS.every(o => pos[o] === "table")) pos.apple = "fridge";
+        S = { robot: "counter", hand: null, pos, open: { fridge: false, drawer: false }, goal: ["apple", "cup"], turn: 0, invalid: 0, fails: 0, done: false };
+        oracle = bfs(clone(S));
+        log = [["env", "Task: put the apple and the cup on the table.\n" + look()]];
+        render();
+      };
+      const exec = a => {
+        const m = a.trim().toLowerCase().match(/^(go|open|close|pick|place|look|done)(?:\s+(\w+))?$/);
+        if (!m) return ["Error: unknown command. Use: go X, open X, close X, pick X, place X, look, done.", false];
+        const [, v, x] = m;
+        if (v === "look") return [look(), true];
+        if (v === "done") { S.done = true; return ["Episode ended by the agent.", true]; }
+        if (!x) return ["Error: '" + v + "' needs an argument.", false];
+        if (v === "go") { if (!LOCS.includes(x)) return ["Error: there is no '" + x + "'. Locations: " + LOCS.join(", ") + ".", false]; S.robot = x; return [look(), true]; }
+        if (v === "open" || v === "close") {
+          if (!CONT.includes(x)) return ["Error: you can't " + v + " the " + x + ".", false];
+          if (S.robot !== x) return ["Error: you are not at the " + x + ".", false];
+          if (v === "open" && rng() < pFail / 2) { S.fails++; return ["The " + x + " is stuck and did not open.", true]; }
+          S.open[x] = v === "open"; return [look(), true];
+        }
+        if (v === "pick") {
+          if (S.hand) return ["Error: your hand is full (holding " + S.hand + ").", false];
+          if (!vis(S, S.robot).includes(x)) return ["Error: you don't see a " + x + " here.", false];
+          if (rng() < pFail) { S.fails++; return ["The " + x + " slipped from the gripper. You are holding nothing.", true]; }
+          S.hand = x; S.pos[x] = "hand"; return [look(), true];
+        }
+        if (v === "place") {
+          if (S.hand !== x) return ["Error: you are not holding a " + x + ".", false];
+          if (CONT.includes(S.robot) && !S.open[S.robot]) return ["Error: the " + S.robot + " is closed.", false];
+          S.pos[x] = S.robot; S.hand = null; return [look(), true];
+        }
+        return ["Error.", false];
+      };
+      const act = a => {
+        if (S.done || !a.trim()) return;
+        S.turn++;
+        const [o, ok] = exec(a);
+        if (!ok) S.invalid++;
+        log.push(["agent", a.trim()]); log.push([ok ? "env" : "err", o]);
+        if (succ(S)) { S.done = true; log.push(["win", "Goal satisfied. Reward = 1."]); }
+        else if (S.turn >= 20 && !S.done) { S.done = true; log.push(["err", "Turn limit reached. Reward = 0."]); }
+        else if (S.done) log.push(["err", "Goal not satisfied. Reward = 0."]);
+        render();
+      };
+      const render = () => {
+        const cols = { env: "var(--muted)", agent: "var(--accent)", err: "var(--rose)", win: "var(--accent)" };
+        logEl.innerHTML = "";
+        for (const [who, t] of log) {
+          const d = document.createElement("div");
+          d.style.color = cols[who]; if (who === "agent" || who === "win") d.style.fontWeight = "600";
+          d.textContent = (who === "agent" ? "> " : "") + t; logEl.appendChild(d);
+        }
+        logEl.scrollTop = logEl.scrollHeight;
+        btns.innerHTML = "";
+        const sugg = ["look", ...LOCS.filter(l => l !== S.robot).map(l => "go " + l)];
+        if (CONT.includes(S.robot)) sugg.push((S.open[S.robot] ? "close " : "open ") + S.robot);
+        for (const o of OBJS) sugg.push(S.hand === o ? "place " + o : "pick " + o);
+        sugg.push("done");
+        for (const s of sugg) { const b = document.createElement("button"); b.textContent = s; b.className = "btn"; b.style.cssText = "font-size:0.8em;padding:2px 8px;border:1px solid var(--line-2);border-radius:6px;background:transparent;color:inherit;cursor:pointer"; b.disabled = S.done; b.onclick = () => act(s); btns.appendChild(b); }
+        const hidden = OBJS.filter(o => CONT.includes(S.pos[o]) && !S.open[S.pos[o]]).length;
+        out.set({ "turn": S.turn + " / 20", "invalid actions": S.invalid, "random failures": S.fails, "oracle optimal length": oracle == null ? "?" : oracle, "objects hidden right now": hidden, "status": S.done ? (succ(S) ? "success (R = 1)" : "failed (R = 0)") : "running" });
+      };
+      inp.addEventListener("keydown", e => { if (e.key === "Enter") { act(inp.value); inp.value = ""; } });
+      RL.button(ctl, "new layout", () => { seed++; reset(); });
+      RL.button(ctl, "restart same layout", () => reset());
+      RL.slider(ctl, { label: "failure prob (pick; open = half)", min: 0, max: 0.6, step: 0.05, value: pFail, fmt: v => v.toFixed(2) }, v => { pFail = v; });
+      RL.note(el, String.raw`You are the policy. Click a suggested command (some are invalid on purpose, to show the error messages) or type one and press Enter. Objects may be hidden in the closed fridge or drawer. Picks fail at random, so the open-loop "expert plan" doesn't always work: read the observation and retry. The oracle length is BFS on the deterministic, fully observed state (it knows where hidden things are), a lower bound for any agent that must search. "restart same layout" replays the same seed, as all $G$ episodes of one GRPO group would.`);
+      reset();
+    },
+
+    /* 2. mask + credit visualiser */
+    maskViz(el, RL) {
+      const turns = [
+        { kind: "prompt", text: "system + task + obs₀", n: 60 },
+        { kind: "act", text: "go fridge", n: 14, valid: true },
+        { kind: "env", text: "fridge closed", n: 24 },
+        { kind: "act", text: "pick apple", n: 12, valid: false },
+        { kind: "env", text: "Error: not visible", n: 18 },
+        { kind: "act", text: "open fridge", n: 12, valid: true },
+        { kind: "env", text: "inside: apple", n: 22 },
+        { kind: "act", text: "pick apple", n: 12, valid: true, progress: true },
+        { kind: "env", text: "holding apple", n: 16 },
+        { kind: "act", text: "go table", n: 10, valid: true },
+        { kind: "env", text: "at table", n: 16 },
+        { kind: "act", text: "place apple", n: 12, valid: true, place: true },
+        { kind: "env", text: "goal ✓", n: 10 },
+      ];
+      let mode = "outcome", maskEnv = true, success = true, base = 0.4, gamma = 1.0;
+      const ctl = RL.controls(el);
+      const cv = RL.canvas(el, { height: 210, draw() {} });
+      const out = RL.readouts(el);
+      const acts = turns.map((t, i) => [t, i]).filter(([t]) => t.kind === "act");
+      const compute = () => {
+        const K = acts.length, R = success ? 1 : 0;
+        const r = acts.map(([t], k) => {
+          if (mode === "outcome") return k === K - 1 ? R : 0;
+          let x = 0; if (!t.valid) x -= 0.1; if (t.place && success) x += 0; if (k === K - 1) x += R; return x;
+        });
+        let A;
+        if (mode === "gae") {
+          const V = acts.map((_, k) => Math.min(0.95, base + (success ? 0.12 : 0.02) * k));
+          V.push(0);
+          const d = r.map((x, k) => x + gamma * V[k + 1] - V[k]);
+          A = new Array(K).fill(0); let g = 0; for (let k = K - 1; k >= 0; k--) { g = d[k] + gamma * 0.95 * g; A[k] = g; }
+        } else {
+          A = new Array(K); let G = 0; for (let k = K - 1; k >= 0; k--) { G = r[k] + gamma * G; A[k] = (mode === "outcome" ? R : G) - base; }
+        }
+        return { r, A };
+      };
+      const draw = () => {
+        const { r, A } = compute();
+        const ctx = cv.ctx, w = cv.w, h = cv.h;
+        const cols = RL.colors();
+        ctx.clearRect(0, 0, w, h);
+        const total = turns.reduce((s, t) => s + t.n, 0);
+        const rows = 2, perRow = Math.ceil(total / rows), x0 = 6, usable = w - 12, rowH = 56, top = 12;
+        let pos = 0, ak = 0, trained = 0, envTrained = 0;
+        for (const t of turns) {
+          let start = pos; const end = pos + t.n;
+          const myA = t.kind === "act" ? A[ak] : null;
+          while (start < end) {
+            const rIdx = Math.floor(start / perRow), segEnd = Math.min(end, (rIdx + 1) * perRow);
+            const x = x0 + ((start - rIdx * perRow) / perRow) * usable, ww = ((segEnd - start) / perRow) * usable, y = top + rIdx * (rowH + 34);
+            const isTrained = t.kind === "act" || (t.kind === "env" && !maskEnv);
+            if (t.kind === "act") {
+              ctx.fillStyle = myA >= 0 ? cols[0] : cols[3]; ctx.globalAlpha = 0.25 + 0.75 * Math.min(1, Math.abs(myA) / 0.8);
+            } else if (t.kind === "env" && !maskEnv) { ctx.fillStyle = cols[4]; ctx.globalAlpha = 0.55; }
+            else { ctx.fillStyle = RL.color("line"); ctx.globalAlpha = 0.6; }
+            ctx.fillRect(x, y, Math.max(1, ww - 2), rowH); ctx.globalAlpha = 1;
+            if (!isTrained) { ctx.strokeStyle = RL.color("muted"); ctx.globalAlpha = 0.35; ctx.beginPath(); for (let hx = x - rowH; hx < x + ww; hx += 8) { ctx.moveTo(Math.max(x, hx), y + Math.max(0, x - hx)); ctx.lineTo(Math.min(x + ww - 2, hx + rowH), y + Math.min(rowH, x + ww - 2 - hx)); } ctx.stroke(); ctx.globalAlpha = 1; }
+            if (start === pos && ww > 30) {
+              ctx.fillStyle = RL.color("ink"); ctx.font = "11px sans-serif"; ctx.textAlign = "left";
+              ctx.fillText(t.text.slice(0, Math.max(3, Math.floor(ww / 6.5))), x + 3, y + 16);
+              if (t.kind === "act") { ctx.font = "bold 11px sans-serif"; ctx.fillText("Â=" + myA.toFixed(2), x + 3, y + 34); ctx.font = "10px sans-serif"; ctx.fillText("r=" + r[ak].toFixed(2), x + 3, y + 49); }
+            }
+            start = segEnd;
+          }
+          if (t.kind === "act") { trained += t.n; ak++; }
+          if (t.kind === "env" && !maskEnv) envTrained += t.n;
+          pos = end;
+        }
+        ctx.fillStyle = RL.color("muted"); ctx.font = "11px sans-serif"; ctx.textAlign = "left";
+        ctx.fillText("hatched grey = masked (no gradient) · coloured = trained, opacity ∝ |advantage| · colour = sign", x0, h - 6);
+        out.set({ "tokens trained": (trained + envTrained) + " / " + total, "env tokens trained": envTrained ? envTrained + " (bug!)" : "0", "Â on the invalid turn": A[1].toFixed(2), "Â on the final turn": A[A.length - 1].toFixed(2) });
+      };
+      cv.draw = () => draw();
+      RL.select(ctl, { label: "credit", value: mode, options: [["outcome", "outcome-only (trajectory GRPO)"], ["step", "per-step rewards, return-to-go"], ["gae", "turn-level GAE with a toy critic"]] }, v => { mode = v; cv.redraw(); });
+      RL.select(ctl, { label: "episode", value: "s", options: [["s", "succeeded (R = 1)"], ["f", "failed (R = 0)"]] }, v => { success = v === "s"; cv.redraw(); });
+      RL.select(ctl, { label: "env tokens", value: "m", options: [["m", "masked (correct)"], ["u", "trained (bug)"]] }, v => { maskEnv = v === "m"; cv.redraw(); });
+      RL.slider(ctl, { label: "group baseline R̄ / V₀", min: 0, max: 1, step: 0.05, value: base, fmt: v => v.toFixed(2) }, v => { base = v; cv.redraw(); });
+      RL.note(el, String.raw`One episode from the worked example: an invalid <code>pick apple</code> (fridge closed), then recovery. Outcome-only gives every model turn the same advantage $R-\bar R$, including the mistake. Per-step rewards ($-0.1$ per invalid action, outcome at the end, $\gamma=1$) give earlier turns a slightly smaller return-to-go, so the turns before and at the error get less credit than those after it. The toy critic's $V$ rises over a successful episode, so GAE concentrates credit where $V$ was most wrong. Switch env tokens to "trained" to see what a missing mask would add to the loss.`);
+      draw();
+    },
+
+    /* 3. curriculum simulator */
+    curriculum(el, RL) {
+      const ctl = RL.controls(el);
+      let s0 = 0.6, G = 8, thr = 0.6, eta = 0.04, Lmax = 10;
+      const plot = RL.plot(el, { height: 230, xlabel: "training step", ylabel: "held-out success at max length", series: [], ymin: 0, ymax: 1 });
+      const plot2 = RL.plot(el, { height: 160, xlabel: "training step", ylabel: "zero-variance group fraction", series: [], ymin: 0, ymax: 1 });
+      const out = RL.readouts(el);
+      const mixed = p => 1 - Math.pow(p, G) - Math.pow(1 - p, G);
+      const draw = () => {
+        const steps = 400, xs = [...Array(steps).keys()];
+        const arms = { uniform: [], curriculum: [], hard: [] }, zv = { uniform: [], curriculum: [], hard: [] }, reach = {};
+        for (const arm of Object.keys(arms)) {
+          let s = s0, L = 1;
+          reach[arm] = "—";
+          for (let t = 0; t < steps; t++) {
+            let lens;
+            if (arm === "uniform") lens = Array.from({ length: Lmax }, (_, i) => i + 1);
+            else if (arm === "hard") lens = [Lmax];
+            else lens = [L, L, L, Math.max(1, L - 1)];
+            let sig = 0;
+            for (const l of lens) sig += mixed(Math.pow(s, l));
+            sig /= lens.length;
+            s = s + eta * sig * (1 - s);
+            if (arm === "curriculum" && Math.pow(s, L) > thr && L < Lmax) L++;
+            const ev = Math.pow(s, Lmax);
+            arms[arm].push(ev); zv[arm].push(1 - sig);
+            if (reach[arm] === "—" && ev >= 0.5) reach[arm] = String(t);
+          }
+        }
+        plot.update({ xs, series: [{ ys: arms.uniform, label: "uniform lengths 1…Lmax", color: "--c2" }, { ys: arms.curriculum, label: "success-gated curriculum", color: "--c1" }, { ys: arms.hard, label: "hardest only (L = Lmax)", color: "--c4", dash: true }], hlines: [{ y: 0.5, label: "50%" }] });
+        plot2.update({ xs, series: [{ ys: zv.uniform, label: "uniform", color: "--c2" }, { ys: zv.curriculum, label: "curriculum", color: "--c1" }, { ys: zv.hard, label: "hardest only", color: "--c4", dash: true }] });
+        out.set({ "SFT success at Lmax": Math.pow(s0, Lmax).toFixed(4), "steps to 50% · uniform": reach.uniform, "· curriculum": reach.curriculum, "· hardest only": reach.hard });
+      };
+      RL.slider(ctl, { label: "SFT per-step skill s₀", min: 0.3, max: 0.95, step: 0.01, value: s0, fmt: v => v.toFixed(2) }, v => { s0 = v; draw(); });
+      RL.slider(ctl, { label: "max plan length", min: 3, max: 16, step: 1, value: Lmax, fmt: v => String(v) }, v => { Lmax = v; draw(); });
+      RL.slider(ctl, { label: "group size G", min: 2, max: 32, step: 1, value: G, fmt: v => String(v) }, v => { G = v; draw(); });
+      RL.slider(ctl, { label: "advance threshold", min: 0.3, max: 0.9, step: 0.05, value: thr, fmt: v => v.toFixed(2) }, v => { thr = v; draw(); });
+      RL.slider(ctl, { label: "learning rate η", min: 0.005, max: 0.1, step: 0.005, value: eta, fmt: v => v.toFixed(3) }, v => { eta = v; draw(); });
+      RL.note(el, String.raw`A deliberately crude model, for intuition only: a single "per-step skill" $s$, task success $s^L$, and learning progress proportional to the fraction of informative groups $1 - p^G - (1-p)^G$. Training only on the hardest length stalls when the SFT start is weak (try $s_0 = 0.5$), because almost every group fails. The curriculum keeps groups informative. Raise $s_0$ to 0.85 and the advantage of a curriculum shrinks: with a strong SFT start, uniform sampling is fine. Larger $G$ also rescues hard tasks, at a generation cost.`);
+      draw();
+    },
+  },
+  selfcheck: [
+    { q: "Formulate multi-turn LLM agent training as an MDP at both levels.", a: String.raw`<p>Turn level: state = task plus history, action = a turn of text, stochastic transition from the environment, reward mostly at the end; partially observed (hidden objects), so the context is the belief state. Token level: state = prefix, action = token, deterministic within a turn, with environment blocks inserted at turn boundaries. The gradient sums token log-probs of each turn times that turn's advantage.</p>` },
+    { q: "Why must environment tokens be masked out of the policy loss?", a: String.raw`<p>The policy didn't choose them; they're part of the transition. Their log-prob gradient would train the model to predict observations, weighted by advantage, which is not a policy improvement and can teach hallucinated observations. Importance ratios and KL are defined only for sampled policy tokens.</p>` },
+    { q: "What is tokenisation drift and how do you avoid it?", a: String.raw`<p>Re-tokenising the decoded conversation can give different token ids than those sampled (BPE merges, whitespace, template rewriting of past turns). Then the trained logprobs are for a sequence the policy didn't produce. Fix: build ids incrementally, copying sampled ids verbatim and tokenising only the environment turns; check ratio ≈ 1 on the first update.</p>` },
+    { q: "PDDL or a Python scene graph for Phase 1? Defend your choice.", a: String.raw`<p>Python scene graph as the source of truth: easy stochastic failures, partial observability, custom error messages, fast; with a BFS/A* planner for optimal lengths and SFT traces. PDDL gives standard optimal planners and validators; export to it if tasks get too big for BFS. Key: one shared precondition function for executor and planner.</p>` },
+    { q: "Outcome-only vs per-step rewards: trade-offs?", a: String.raw`<p>Outcome-only: honest and hard to hack, but weak credit assignment and high variance for long episodes. Per-step: faster learning and fewer invalid actions, but can change the optimal policy and be farmed unless potential-based; must be computed from symbolic state. Run both and watch shaped return vs true success.</p>` },
+    { q: "Why is a curriculum on plan length useful for GRPO specifically?", a: String.raw`<p>GRPO learns only from mixed-outcome groups, $P(\text{mixed}) = 1-p^G-(1-p)^G$. Long tasks with weak SFT have $p\approx0$, so groups are all-fail and gradients vanish. A curriculum keeps $p$ in the informative middle band and advances as skill grows.</p>` },
+    { q: "How do you make the optimal-planner comparison fair when objects are hidden and actions fail?", a: String.raw`<p>The oracle BFS (knows hidden locations, no failures) is a lower bound. Add a scripted replanning agent that sees only observations, run on the same seeds, and compare lengths on episodes where both succeed. Report success, validity and length jointly, on held-out splits.</p>` },
+    { q: "What does RL fix that SFT on expert plans doesn't?", a: String.raw`<p>Recovery from failures and own errors (expert data has no post-error states: exposure bias), active search under partial observability (oracle traces "know" where things are), validity, stopping at the right time, and sharpening pass@1. It can't create behaviours with zero probability under the SFT model.</p>` },
+    { q: "Turn-level vs token-level GAE in multi-turn PPO: which and why?", a: String.raw`<p>Turn-level: values at turn boundaries, TD errors over turns, advantage broadcast to the turn's tokens. Token-level GAE with $\gamma\lambda&lt;1$ discounts by token count, penalising verbose turns arbitrarily and spreading credit at the wrong granularity.</p>` },
+    { q: "Your multi-turn run's success climbs but held-out success doesn't. Diagnose.", a: String.raw`<p>Memorisation of layouts/seeds (train split too narrow), entropy collapse on fixed tasks, reward hack in the goal check, or curriculum mismatch (training lengths ≠ eval lengths). Check held-out splits by object combination and length, read trajectories, compare pass@k, and check entropy.</p>` },
+  ],
+  quiz: [
+    { q: "In a multi-turn rollout, which tokens should carry policy-gradient loss?", choices: ["All tokens in the sequence", "Only the tokens the policy sampled in its own turns", "Only the environment observation tokens", "Only the final turn's tokens"], answer: 1,
+      explain: "The policy gradient and the ratio are defined for actions the policy took. Prompt, observations, tool outputs, template wrappers and padding are masked. Training only the final turn throws away the credit for earlier actions." },
+    { q: "What goes wrong if you forget to mask environment tokens?", choices: ["Nothing: they're conditioned on anyway", "The model is trained to predict observations (weighted by advantage), which isn't a policy update and can teach it to hallucinate environment responses", "The reward becomes negative", "The KL to the reference becomes zero"], answer: 1,
+      explain: "Conditioning on observations is right; training on their log-probs is wrong. The update would raise the probability of observations from good episodes, which the policy doesn't control." },
+    { q: "Why build the multi-turn token sequence incrementally instead of re-applying the chat template to the final conversation?", choices: ["It's faster to write", "Re-tokenisation can change token ids and templates may rewrite past turns, so the trained sequence would differ from what the policy actually sampled and conditioned on", "Chat templates don't support multiple turns", "It saves GPU memory"], answer: 1,
+      explain: "Train on exactly the ids sampled and exactly the context each turn was sampled under. Sanity check: with one update per batch, the first-step importance ratio should be ≈ 1." },
+    { q: String.raw`A policy succeeds per step with probability $s=0.6$. What is the success probability of a 10-step task (assume independence)?`, answer: 0.00605, tol: 0.0002,
+      explain: String.raw`$0.6^{10} = 0.00605$. Almost every group of 8 will be all-fail ($0.994^8\approx 0.95$), so GRPO gets almost no signal: the motivation for a curriculum.` },
+    { q: String.raw`Group size $G=8$, task success rate $p = 0.5$. Probability that a group is informative (not all-same): $1 - p^G - (1-p)^G$?`, answer: 0.9922, tol: 0.0005,
+      explain: String.raw`$1 - 2\cdot 0.5^8 = 1 - 2/256 = 0.9922$. At $p=0.05$: $1 - 0.05^8 - 0.95^8 \approx 0.337$. Informativeness peaks at $p=0.5$.` },
+    { q: "Which per-step reward is guaranteed not to change the optimal policy?", choices: ["+0.2 every time a container is opened", "−0.1 for every turn", String.raw`$F = \gamma\Phi(s') - \Phi(s)$ with $\Phi$ = number of goal objects in place`, "+1 for every valid action"], answer: 2,
+      explain: String.raw`Potential-based shaping (Ng et al., 1999) preserves optimal policies. Opening rewards can be farmed (open/close loops); +1 per valid action rewards long episodes. A constant per-turn cost does change the problem (it prefers shorter plans), which may be what you want but isn't "safe" in the formal sense.` },
+    { q: "With outcome-only trajectory-level GRPO, a successful episode containing one invalid action gives that invalid action…", choices: ["a negative advantage", "the same positive advantage as every other turn in the episode", "zero advantage", "an advantage computed by a value head"], answer: 1,
+      explain: "Trajectory-level advantages are broadcast to every model token. Across many episodes, invalid actions appear more often in failures and get pushed down on average, but per-episode credit is coarse." },
+    { q: "Which are reasons to inject random action failures into the Phase 1 environment? (select all that apply)", choices: ["Open-loop expert plans stop working, forcing closed-loop behaviour", "It creates post-failure states where recovery can be learned", "It makes the BFS oracle length an exact match for agent length", "It tests whether the model reads observations instead of reciting a plan"], answer: [0, 1, 3],
+      explain: "Failures make the oracle length (which assumes no failures) a strict lower bound, so option 3 is the opposite of true. The others are the whole point." },
+    { q: "Why is the oracle BFS plan length a lower bound for your agent's plan length?", choices: ["BFS is not optimal", "The oracle knows where hidden objects are and assumes actions never fail; the agent must search and retry", "Because the agent uses more tokens per action", "It isn't; they should match exactly"], answer: 1,
+      explain: "Compare to a replanning scripted agent with the same observations for a fair efficiency baseline, and report the ratio on episodes both solve." },
+    { q: "In multi-turn PPO with a value head, why prefer turn-level GAE over token-level GAE with γ, λ < 1?", choices: ["Token-level GAE is biased", "Token-level discounting depends on how many tokens each turn uses, penalising verbose turns arbitrarily; values at turn boundaries match the decision points", "Turn-level GAE needs no critic", "Token-level GAE can't be computed"], answer: 1,
+      explain: "Decisions happen at turns; the environment acts between them. Discounting per token makes credit depend on verbosity rather than on the decision." },
+    { q: "Training only on the longest plan lengths from a weak SFT start typically…", choices: ["learns fastest since the tasks are most informative", "stalls: nearly all groups fail, so advantages are zero", "causes reward hacking", "makes the KL explode"], answer: 1,
+      explain: String.raw`$p\approx 0$ means $1-p^G-(1-p)^G\approx 0$: no gradient. Hard tasks are informative only once the policy sometimes solves them. Check the SFT model's pass@k on them first.` },
+    { q: "Which of these does RL on top of SFT plausibly fix? (select all that apply)", choices: ["Recovering after a failed pick", "Searching containers when the target is hidden", "Using an action verb that never appears in any training data or prompt", "Reducing invalid actions"], answer: [0, 1, 3],
+      explain: "RL reinforces behaviours the policy already samples sometimes. A completely unseen action has ~zero probability, so outcome-reward RL has no signal to find it." },
+    { q: "The SFT model's pass@64 on a task family is 0. What do you expect from outcome-reward GRPO on that family?", choices: ["Fast improvement", "Essentially no learning signal on it; improve SFT data, add easier variants or shaping first", "Higher pass@1 but lower pass@64", "Reward hacking"], answer: 1,
+      explain: "With no successes in 64 samples, groups of 8 are almost always all-fail. Improve the starting distribution or the curriculum before spending RL compute." },
+    { q: "Which framework is Ray-based, supports FSDP/Megatron training with vLLM/SGLang rollouts, and comes from the HybridFlow paper?", choices: ["TRL", "verl", "CleanRL", "Gymnasium"], answer: 1,
+      explain: "verl (Volcano Engine RL). TRL is Hugging Face's library (GRPOTrainer, PEFT integration); CleanRL is single-file classic RL; Gymnasium is the env API." },
+    { q: "Why does prefix caching in the inference engine matter more for multi-turn rollouts?", choices: ["It doesn't", "Each turn re-submits the whole growing conversation; caching the shared prefix's KV avoids recomputing it every turn", "It reduces the number of turns", "It improves the reward"], answer: 1,
+      explain: "Turn $k$'s prompt is turn $k-1$'s prompt plus a few hundred tokens. Without prefix caching, prefill cost grows roughly quadratically over an episode." },
+    { q: "You set the GRPO group to G episodes from the same task seed with the same failure RNG stream. What does this do?", choices: ["Makes all episodes identical", "Differences in reward come only from the policy's choices (and sampling), lowering variance from environment luck", "Breaks the policy gradient", "Removes the need for masking"], answer: 1,
+      explain: "Episodes still differ because the policy samples different actions, which also changes which random draws are used where. Independent failure streams are also valid; they average luck into the baseline. Decide deliberately and log it." },
+    { q: "A model learns to emit 'done' on turn 1 for hard tasks. Most likely cause?", choices: ["The KL is too large", "With outcome-only rewards and rare success, ending early costs nothing, especially if there's a per-turn cost or invalid-action penalty", "The mask is wrong", "Temperature is too low"], answer: 1,
+      explain: "Any per-turn cost makes early termination the best response to a task the model can't solve. Fixes: curriculum, no per-turn cost until success is common, or require done only when the goal holds (and treat early done as failure, which it already is)." },
+  ],
+  flashcards: [
+    { front: "Multi-turn MDP: action at the turn level", back: "A whole turn of text (e.g. one environment command, possibly with reasoning)." },
+    { front: "Why is Phase 1 a POMDP?", back: "Objects can be hidden inside closed containers; the observation shows only what's visible at the robot's location." },
+    { front: "Trajectory-level GRPO", back: String.raw`$G$ episodes from the same start; $\hat A_i = R_i - \bar R$ (opt. ÷ std) applied to every model token of episode $i$.` },
+    { front: "What to mask in multi-turn RL", back: "Everything except the policy's own sampled tokens: prompt, observations, tool outputs, template wrappers, padding." },
+    { front: "Tokenisation drift", back: "Re-tokenised text ≠ sampled ids. Build ids incrementally; copy sampled ids verbatim." },
+    { front: "PDDL", back: "Planning Domain Definition Language: domain (predicates, actions with preconditions/effects) + problem (objects, init, goal)." },
+    { front: "Python scene graph env: main advantages", back: "Easy stochastic failures, hidden objects, custom error messages, speed, deep-copyable states." },
+    { front: "Three kinds of action outcome to distinguish", back: "Parse error, precondition failure, stochastic failure. Each gets its own message." },
+    { front: "Potential-based shaping", back: String.raw`$F = \gamma\Phi(s') - \Phi(s)$; preserves optimal policies (Ng et al., 1999). With γ = 1 it telescopes.` },
+    { front: "Risk of non-potential per-step rewards", back: "Reward farming (open/close loops) and a changed optimal policy." },
+    { front: "Turn-level GAE", back: String.raw`$\delta_k = r_k + \gamma V(s_{k+1}) - V(s_k)$ over turns; advantage broadcast to the turn's tokens.` },
+    { front: "MC per-turn baseline", back: "Restore the simulator state at turn k and roll out several continuations; their mean return is an unbiased value estimate." },
+    { front: "Informative group probability", back: String.raw`$1 - p^G - (1-p)^G$, maximal at $p = 0.5$.` },
+    { front: "Success-gated curriculum", back: "Advance the plan length when training success at the current level exceeds a threshold; replay some easier tasks." },
+    { front: "Oracle BFS length", back: "Lower bound: knows hidden objects, no failures. Pair it with a replanning scripted baseline." },
+    { front: "Plan length ratio", back: "Agent turns / optimal length, on successful episodes." },
+    { front: "Recovery rate", back: "Success conditioned on at least one failure or error during the episode." },
+    { front: "Held-out splits for Phase 1", back: "Unseen object/location combos, more objects, longer plans, held-out container types, different failure rates." },
+    { front: "What RL fixes that SFT doesn't", back: "Recovery, search under partial observability, validity, stopping, pass@1 (sharpening)." },
+    { front: "What RL can't fix", back: "Behaviours with ~zero probability under the starting policy (pass@k = 0)." },
+    { front: "TRL vs verl", back: "TRL: simple, HF/PEFT-integrated, single-GPU friendly. verl: Ray + FSDP/Megatron + vLLM/SGLang, built for scale." },
+    { front: "Why prefix caching matters for multi-turn", back: "Each turn resubmits the growing history; caching its KV avoids repeated prefill." },
+    { front: "Async rollout pitfall", back: "Stale sampling weights: use the sampler's policy as π_old in the ratio and keep staleness small." },
+    { front: "Done-spam", back: "Model ends episodes immediately when success is rare and ending early is free or cheaper than failing slowly." },
+  ],
+  cheats: [
+    { name: "Multi-turn policy gradient", tex: String.raw`\nabla_\theta J = \mathbb{E}\Big[\sum_k \hat A_k \sum_{t\in\text{turn }k}\nabla_\theta\log\pi_\theta(y_t\mid y_{\lt t})\Big]`, note: "Env tokens excluded from the inner sum." },
+    { name: "Trajectory GRPO advantage", tex: String.raw`\hat A_i = R_i - \tfrac1G\sum_j R_j`, note: "Optionally ÷ std. Same value for all model tokens of episode i." },
+    { name: "Per-step return-to-go", tex: String.raw`\hat A_k = \sum_{j\ge k}\gamma^{j-k} r_j - b_k`, note: "b_k from a group mean, MC rollouts or a critic." },
+    { name: "Turn-level GAE", tex: String.raw`\delta_k = r_k + \gamma V(s_{k+1}) - V(s_k),\quad \hat A_k = \sum_{j\ge k}(\gamma\lambda)^{j-k}\delta_j`, note: "Values at turn boundaries." },
+    { name: "Potential-based shaping", tex: String.raw`F(s,s') = \gamma\,\Phi(s') - \Phi(s)`, note: "Optimal policy unchanged (Ng et al., 1999)." },
+    { name: "Long-task success", tex: String.raw`p(L) \approx s^L`, note: "Per-step skill s; why long tasks start at ~0." },
+    { name: "Informative group", tex: String.raw`P(\text{mixed}) = 1 - p^G - (1-p)^G`, note: "Keep p in the middle band." },
+    { name: "Plan length ratio", tex: String.raw`\rho_\text{len} = \frac{\text{agent turns}}{L^*_\text{optimal}}\ \ (\text{successes only})`, note: "≥ 1 vs the oracle." },
+  ],
+  glossary: [
+    { term: "Multi-turn RL", def: "RL where an episode is several model turns interleaved with environment responses, with reward typically at the end." },
+    { term: "Turn", def: "One model message in an episode; the action at the turn-level MDP." },
+    { term: "Loss mask", def: "Per-token 0/1 marking which tokens receive policy-gradient (and KL) loss: only policy-sampled tokens." },
+    { term: "Scene graph", def: "Symbolic state of objects, locations, containers and relations, mutated by actions with preconditions." },
+    { term: "PDDL", def: "Planning Domain Definition Language for classical planning domains and problems." },
+    { term: "Fast Downward", def: "A widely used classical planner for PDDL; with admissible heuristics it returns optimal plans." },
+    { term: "Partial observability", def: "The agent's observation doesn't reveal the full state (e.g. hidden objects); the policy must act on its history." },
+    { term: "Replanning", def: "Revising the plan after an unexpected observation (failure, discovered object)." },
+    { term: "Outcome reward", def: "A single reward for whether the episode achieved the goal." },
+    { term: "Process / per-step reward", def: "Rewards for intermediate events or steps; denser but hackable unless potential-based." },
+    { term: "Curriculum", def: "A schedule over task difficulty that keeps training tasks informative." },
+    { term: "Tokenisation drift", def: "Mismatch between sampled token ids and ids obtained by re-tokenising decoded text." },
+    { term: "Prefix caching", def: "Reusing the KV cache of a shared prompt prefix across requests; key for growing multi-turn contexts." },
+    { term: "Exposure bias", def: "A model trained on expert prefixes never sees its own mistakes during training, so it handles them poorly at test time." },
+    { term: "Done-spam", def: "Degenerate policy that ends episodes immediately because trying is not rewarded." },
+  ],
+  links: [
+    { title: "verl (GitHub)", url: "https://github.com/volcengine/verl", note: "RL library for LLMs: PPO/GRPO, vLLM/SGLang rollouts, multi-turn support." },
+    { title: "HybridFlow: A Flexible and Efficient RLHF Framework (the verl paper)", url: "https://arxiv.org/abs/2409.19256", note: "Design of the hybrid controller and colocated workers." },
+    { title: "TRL documentation", url: "https://huggingface.co/docs/trl/index", note: "GRPOTrainer, PEFT and vLLM integration; check the current multi-turn options." },
+    { title: "vLLM documentation", url: "https://docs.vllm.ai/", note: "Continuous batching, PagedAttention, prefix caching." },
+    { title: "ALFWorld (Shridhar et al., 2020)", url: "https://arxiv.org/abs/2010.03768", note: "Text household environment aligned with embodied tasks: a close cousin of your Phase 1 env." },
+    { title: "TextWorld (Côté et al., 2018)", url: "https://arxiv.org/abs/1806.11532", note: "Procedurally generated text games for RL agents." },
+    { title: "ArCHer: hierarchical multi-turn RL for LLM agents (Zhou et al., 2024)", url: "https://arxiv.org/abs/2402.19446", note: "Turn-level critic with a token-level policy." },
+    { title: "Fast Downward planner", url: "https://www.fast-downward.org/", note: "Optimal PDDL plans for SFT data and evaluation." },
+    { title: "Planning.wiki: PDDL guide", url: "https://planning.wiki/", note: "Readable reference for PDDL syntax and versions." },
+  ],
+});
+
+</script>
 <script>/* 10-il.js */
 /* Module 10: Imitation learning. BC, covariate shift, DAgger, multimodality, ACT chunking, diffusion and flow-matching policies. */
 RL.module({
@@ -12164,9 +12847,10 @@ for a long time afterwards.</p></div>
     <g transform="translate(190,20)"><rect width="110" height="110" rx="12" fill="none" stroke="var(--line-2)" stroke-width="2"/><rect x="15" y="25" width="22" height="30" rx="4" fill="none" stroke="var(--blue)" stroke-width="2"/><rect x="44" y="25" width="22" height="30" rx="4" fill="none" stroke="var(--blue)" stroke-width="2"/><rect x="73" y="25" width="22" height="30" rx="4" fill="none" stroke="var(--blue)" stroke-width="2"/><text x="55" y="85">B</text><text x="55" y="104" fill="var(--muted)" font-size="12">win rate: ?</text></g>
     <g transform="translate(340,20)"><rect width="110" height="110" rx="12" fill="none" stroke="var(--line-2)" stroke-width="2"/><rect x="15" y="25" width="22" height="30" rx="4" fill="none" stroke="var(--orange)" stroke-width="2"/><rect x="44" y="25" width="22" height="30" rx="4" fill="none" stroke="var(--orange)" stroke-width="2"/><rect x="73" y="25" width="22" height="30" rx="4" fill="none" stroke="var(--orange)" stroke-width="2"/><text x="55" y="85">C</text><text x="55" y="104" fill="var(--muted)" font-size="12">win rate: ?</text></g>
     <g transform="translate(490,20)"><rect width="110" height="110" rx="12" fill="none" stroke="var(--line-2)" stroke-width="2"/><rect x="15" y="25" width="22" height="30" rx="4" fill="none" stroke="var(--violet)" stroke-width="2"/><rect x="44" y="25" width="22" height="30" rx="4" fill="none" stroke="var(--violet)" stroke-width="2"/><rect x="73" y="25" width="22" height="30" rx="4" fill="none" stroke="var(--violet)" stroke-width="2"/><text x="55" y="85">D</text><text x="55" y="104" fill="var(--muted)" font-size="12">win rate: ?</text></g>
-    <text x="320" y="158" fill="var(--muted)" font-size="12.5">Each machine has a hidden win rate. The only way to learn it is to pull, and every pull spent learning is a pull not spent on the best machine.</text>
+
   </g>
 </svg>
+<p class="widget-note" style="text-align:center">Each machine has a hidden win rate. The only way to learn it is to pull, and every pull spent learning is a pull not spent on the best machine.</p>
 </figure>
 
 <p>The cleanest version of this problem is a row of slot machines (the old name is "one-armed bandits", so this is
@@ -17081,6 +17765,87 @@ ffmpeg -i before.mp4 -i after.mp4 -filter_complex hstack=inputs=2 side_by_side.m
     ],
   });
 })();
+
+</script>
+<script>/* plain-agentic.js */
+RL.plain("agentic", {
+  title: "The no-math version",
+  lede: "How to turn an LLM into an agent that acts over many turns, learns from what happens, and how to build the world it practises in.",
+  html: String.raw`
+<div class="callout key"><b>The big idea in one sentence</b><p>Instead of grading one answer, you let the model take many small actions in a little world you built, see what happens after each one, and reward it for finishing the job, so it learns to plan, notice mistakes and recover.</p></div>
+
+<h3>An everyday analogy</h3>
+<p>Think of a new kitchen assistant. Giving them a recipe card (supervised fine-tuning) teaches them the usual order of steps. But on a real shift the fridge is locked, the pan they wanted is dirty and the salt is hidden in a cupboard. Only by working real shifts, getting told "that didn't work" and being praised when the meal comes out right do they learn to <i>adapt</i>. Multi-turn RL is those practice shifts. Your text environment is the practice kitchen, and you decide how messy it is.</p>
+
+<figure><svg viewBox="0 0 560 130" role="img" aria-label="The agent loop: model sends an action, environment returns a new state or error, repeat until done, then reward">
+<rect x="10" y="35" width="130" height="56" rx="10" fill="none" stroke="var(--accent)" stroke-width="2"/>
+<text x="75" y="60" text-anchor="middle" fill="currentColor" font-size="14">LLM planner</text>
+<text x="75" y="78" text-anchor="middle" fill="var(--muted)" font-size="11">writes one action</text>
+<rect x="300" y="35" width="150" height="56" rx="10" fill="none" stroke="var(--blue)" stroke-width="2"/>
+<text x="375" y="60" text-anchor="middle" fill="currentColor" font-size="14">Your environment</text>
+<text x="375" y="78" text-anchor="middle" fill="var(--muted)" font-size="11">runs it, reports back</text>
+<path d="M140 50 H300" stroke="var(--line-2)" stroke-width="2" marker-end="url(#ag-a)"/>
+<path d="M300 78 H140" stroke="var(--line-2)" stroke-width="2" marker-end="url(#ag-a)"/>
+<text x="220" y="44" text-anchor="middle" fill="currentColor" font-size="11">"open drawer"</text>
+<text x="220" y="96" text-anchor="middle" fill="currentColor" font-size="11">"drawer is locked"</text>
+<rect x="470" y="40" width="80" height="46" rx="8" fill="none" stroke="var(--orange)" stroke-width="2"/>
+<text x="510" y="60" text-anchor="middle" fill="currentColor" font-size="12">goal met?</text>
+<text x="510" y="77" text-anchor="middle" fill="var(--muted)" font-size="11">reward</text>
+<path d="M450 63 H470" stroke="var(--line-2)" stroke-width="2"/>
+<defs><marker id="ag-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="var(--line-2)"/></marker></defs>
+</svg><figcaption>One episode is a conversation: action, feedback, action, feedback… and a score at the end.</figcaption></figure>
+
+<h3>How it works, step by step</h3>
+<ol class="steps">
+<li><b>Build a tiny world.</b> A Python scene graph (objects, where they are, what is open or held) or a PDDL domain. It takes an action string and returns the new state as text, or an error message.</li>
+<li><b>Make it realistically annoying.</b> Actions sometimes fail at random, objects hide inside containers until you look, and the model only sees what is nearby. This is what forces replanning instead of reciting.</li>
+<li><b>Teach the basics first.</b> Run a classical planner to get correct plans, turn them into conversations, and fine-tune the model on them (SFT). Now it speaks the action format.</li>
+<li><b>Let it practise.</b> For each task, play out several full episodes with the current model. Each turn: model writes an action, environment answers, repeat until success, a give-up, or a turn limit.</li>
+<li><b>Score each episode.</b> Mainly "did it reach the goal?", optionally small bonuses or penalties per step (valid action, progress made, wasted moves).</li>
+<li><b>Compare episodes on the same task.</b> With GRPO, the episodes that did better than their siblings get pushed up, worse ones pushed down. No separate critic model is needed.</li>
+<li><b>Only train on the model's own words.</b> The environment's replies are part of the conversation but the model didn't write them, so they're hidden from the loss.</li>
+<li><b>Make the tasks harder over time.</b> Start with 2–3 step plans, then raise the length as success climbs (a curriculum).</li>
+</ol>
+
+<h3>What you actually do in code</h3>
+<div class="grid2">
+<div><h4>The environment</h4>
+<pre><code><span class="c"># a gym-like text env</span>
+obs = env.reset(task_id)        <span class="c"># "You are in the kitchen. You see: drawer (closed)..."</span>
+obs, reward, done, info = env.step("open drawer")
+<span class="c"># invalid -> a helpful error, not a crash:</span>
+<span class="c"># "Error: drawer is locked. Try: unlock drawer with key"</span></code></pre>
+<p>Keep one action per turn, a fixed action grammar, and error messages that say <i>why</i> something failed.</p></div>
+<div><h4>The training loop</h4>
+<ul>
+<li><b>Rollouts:</b> vLLM generates turns fast; run many episodes in parallel (async) because the env waits are short but frequent.</li>
+<li><b>Loss mask:</b> a per-token mask that is 1 on model tokens, 0 on environment and prompt tokens.</li>
+<li><b>Frameworks:</b> TRL is simplest to start; verl has stronger multi-turn and tool-call rollout support (check current docs, both move fast).</li>
+<li><b>Fit on 24 GB:</b> LoRA on a 1.5–4B Qwen, short max turns, modest group size.</li>
+</ul></div>
+</div>
+
+<div class="callout tip"><b>Rewards: start simple</b><p>Begin with outcome-only (1 for success, 0 otherwise). Add per-step rewards only as a deliberate experiment, and keep them small. Step rewards help early learning but are easy to game: a model rewarded for "valid actions" may happily wander forever making valid but useless moves.</p></div>
+
+<h3>Gotchas you'll hit in practice</h3>
+<ul>
+<li><b>Forgetting the mask.</b> If environment text is trained on, the model learns to imitate the simulator and may start hallucinating its own feedback.</li>
+<li><b>All-zero groups.</b> If every episode for a task fails (or all succeed), there is nothing to compare and no learning signal. Curriculum and SFT warm-start fix this.</li>
+<li><b>Credit is blurry.</b> A single end reward doesn't say which of 12 turns mattered. That's normal; more samples and shorter tasks help.</li>
+<li><b>Loops and stalling.</b> Cap the number of turns and treat hitting the cap as a failure.</li>
+<li><b>Parsing errors.</b> Decide up front what happens with malformed actions: return an error and let it retry, and count it in your validity metric.</li>
+<li><b>Overfitting to training tasks.</b> Keep held-out tasks (new object layouts, longer plans) and only report on those.</li>
+<li><b>Context blow-up.</b> Long episodes mean long prompts; summarise or truncate old turns if memory runs out.</li>
+</ul>
+
+<div class="callout warn"><b>Classic bug</b><p>Random failures make the same plan succeed sometimes and fail other times. Fix the random seed per episode when you compare methods, or the comparison is noise.</p></div>
+
+<h3>Where it shows up in your plan</h3>
+<p>This <i>is</i> <b>Phase 1</b>. You build the environment, distil planner traces with SFT, then run GRPO (and PPO with a value head) on top. The experiments to run: outcome-only vs per-step rewards, a curriculum on plan length, pass@k before vs after RL, and a deliberately loopholed verifier. Report goal success, validity rate and plan length compared to the optimal planner, all on held-out tasks. The "done when" write-up is what RL fixed that SFT didn't: usually recovery after failures and searching for hidden objects, because SFT only ever saw clean plans.</p>
+
+<div class="callout key"><b>If you only remember three things</b><p>1. The environment design (failures, hidden objects, good error messages) matters as much as the RL algorithm. 2. Mask out environment tokens and reward mostly the final outcome. 3. SFT teaches the format and the happy path; RL teaches recovery, which is exactly what you should measure on held-out tasks.</p></div>
+`,
+});
 
 </script>
 <script>/* plain-compute.js */
