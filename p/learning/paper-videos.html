@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Research Paper Videos</title>
+<meta name="description" content="Narrated guided readings of research papers: the Transformer, DINOv3, scalable patch-level self-supervised learning, and five ideas from IROS 2026.">
+<meta property="og:title" content="Research Paper Videos">
+<meta property="og:description" content="Narrated guided readings of research papers.">
+<meta property="og:image" content="media/attention-is-all-you-need.jpg">
+<style>
+  :root { --bg:#f6f5f2; --fg:#16181d; --muted:#6b6f78; --rule:#dcdad4; --card:#fffdf9; --accent:#9a6b00; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0b0d12; --fg:#ece8e1; --muted:#8a8f98; --rule:#23272f; --card:#11141a; --accent:#ffd45a; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:16px/1.55 -apple-system, BlinkMacSystemFont, "Avenir Next", "Segoe UI", sans-serif; }
+  main { max-width:960px; margin:0 auto; padding:40px 16px 64px; }
+  a { color:inherit; }
+  h1 { font:400 clamp(30px,5vw,46px)/1.12 "Iowan Old Style", Palatino, Georgia, serif; margin:0 0 10px; }
+  .lede { color:var(--muted); margin:0 0 22px; max-width:62ch; }
+  nav { display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:6px 18px; margin:0 0 8px; }
+  nav a { display:flex; gap:10px; align-items:baseline; padding:7px 0; border-bottom:1px solid var(--rule); text-decoration:none; font-size:15px; }
+  nav a:hover { color:var(--accent); }
+  nav span { font-variant-numeric:tabular-nums; color:var(--muted); min-width:1.2em; }
+  h2 { font-size:12.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:600;
+       margin:48px 0 0; padding-top:14px; border-top:1px solid var(--rule); }
+  .vid { margin:22px 0 40px; scroll-margin-top:16px; }
+  .eyebrow { margin:0; color:var(--muted); font-size:13px; font-variant-numeric:tabular-nums; }
+  h3 { font:400 clamp(22px,3.4vw,30px)/1.2 "Iowan Old Style", Palatino, Georgia, serif; margin:2px 0 4px; }
+  .blurb { margin:0 0 14px; color:var(--muted); max-width:70ch; }
+  video { width:100%; aspect-ratio:16/9; background:#000; border-radius:10px; display:block; }
+  details { margin-top:10px; font-size:14.5px; }
+  summary { cursor:pointer; color:var(--muted); width:max-content; }
+  summary:hover { color:var(--accent); }
+  ol { list-style:none; padding:0; margin:8px 0 0; display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:0 22px; }
+  button { all:unset; cursor:pointer; display:flex; gap:12px; padding:5px 0; border-bottom:1px solid var(--rule); width:100%; }
+  button:hover { color:var(--accent); }
+  .t { font-variant-numeric:tabular-nums; color:var(--muted); min-width:3em; }
+  .soon { opacity:.6; }
+  footer { margin-top:48px; color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Research Paper Videos</h1>
+  <p class="lede">Narrated guided readings of papers, each one walked through in the paper's own order, with its figures and numbers. For the RL and robot-learning series, see <a href="rl-videos.html">RL Videos</a>.</p>
+  <nav><a href="#attention-is-all-you-need"><span>1</span>Attention Is All You Need</a><a href="#dinov3-self-supervised-vision-foundation-model"><span>2</span>DINOv3</a><a href="#scalable-patch-level-self-supervised-learning"><span>3</span>Scalable Patch-Level Self-Supervised Learning</a><a href="#five-ideas-from-iros-2026-v2"><span>4</span>Five Ideas from IROS 2026</a></nav>
+  <h2>Foundations</h2><section id="attention-is-all-you-need" class="vid"><p class="eyebrow">Video 1 · 9:35</p><h3>Attention Is All You Need</h3><p class="blurb">Vaswani et al., 2017 · The paper that introduced the Transformer, read chapter by chapter.</p><video controls preload="none" playsinline poster="media/attention-is-all-you-need.jpg"><source src="media/attention-is-all-you-need.mp4" type="video/mp4"></video><details><summary>Chapters</summary><ol><li><button data-t="0.00"><span class="t">0:00</span>Opening</button></li><li><button data-t="35.41"><span class="t">0:35</span>Reading one word at a time</button></li><li><button data-t="104.22"><span class="t">1:44</span>Attention as a soft lookup</button></li><li><button data-t="167.61"><span class="t">2:48</span>Scaled dot-product attention</button></li><li><button data-t="234.62"><span class="t">3:55</span>Many heads</button></li><li><button data-t="279.26"><span class="t">4:39</span>Where is each word?</button></li><li><button data-t="334.69"><span class="t">5:35</span>The Transformer</button></li><li><button data-t="405.99"><span class="t">6:46</span>Why self-attention</button></li><li><button data-t="453.78"><span class="t">7:34</span>Training and results</button></li><li><button data-t="520.93"><span class="t">8:41</span>What came next</button></li></ol></details></section><h2>Self-supervised vision</h2><section id="dinov3-self-supervised-vision-foundation-model" class="vid"><p class="eyebrow">Video 2 · 14:29</p><h3>DINOv3</h3><p class="blurb">Siméoni et al., 2025 · Meta&#x27;s self-supervised vision model: curated data, Gram anchoring and what frozen features can do.</p><video controls preload="none" playsinline poster="media/dinov3-self-supervised-vision-foundation-model.jpg"><source src="media/dinov3-self-supervised-vision-foundation-model.mp4" type="video/mp4"></video><details><summary>Chapters</summary><ol><li><button data-t="0.00"><span class="t">0:00</span>Opening</button></li><li><button data-t="51.41"><span class="t">0:51</span>Learning without labels</button></li><li><button data-t="128.39"><span class="t">2:08</span>Choosing the data</button></li><li><button data-t="200.56"><span class="t">3:21</span>The self-distillation recipe</button></li><li><button data-t="283.34"><span class="t">4:43</span>When dense features decay</button></li><li><button data-t="366.59"><span class="t">6:07</span>Gram anchoring</button></li><li><button data-t="450.46"><span class="t">7:30</span>Higher resolution</button></li><li><button data-t="535.61"><span class="t">8:56</span>A family of models</button></li><li><button data-t="617.46"><span class="t">10:17</span>Frozen features, measured</button></li><li><button data-t="703.85"><span class="t">11:44</span>The same recipe from orbit</button></li><li><button data-t="784.60"><span class="t">13:05</span>What it means</button></li></ol></details></section><section id="scalable-patch-level-self-supervised-learning" class="vid"><p class="eyebrow">Video 3 · 14:47</p><h3>Scalable Patch-Level Self-Supervised Learning</h3><p class="blurb">Seitzer et al., 2026 · One information-theoretic objective for patch features, scaled from 300M to 7B parameters.</p><video controls preload="none" playsinline poster="media/scalable-patch-level-self-supervised-learning.jpg"><source src="media/scalable-patch-level-self-supervised-learning.mp4" type="video/mp4"></video><details><summary>Chapters</summary><ol><li><button data-t="0.00"><span class="t">0:00</span>Opening</button></li><li><button data-t="56.30"><span class="t">0:56</span>Learning without labels</button></li><li><button data-t="138.87"><span class="t">2:19</span>A recipe that grew</button></li><li><button data-t="221.66"><span class="t">3:42</span>What two views share</button></li><li><button data-t="319.39"><span class="t">5:19</span>Aligning patches</button></li><li><button data-t="401.40"><span class="t">6:41</span>The first collapse</button></li><li><button data-t="485.12"><span class="t">8:05</span>The second collapse</button></li><li><button data-t="561.03"><span class="t">9:21</span>Building the views</button></li><li><button data-t="636.34"><span class="t">10:36</span>What really matters</button></li><li><button data-t="716.76"><span class="t">11:57</span>Scaling to seven billion</button></li><li><button data-t="815.35"><span class="t">13:35</span>A simpler foundation</button></li></ol></details></section><h2>Robotics</h2><section id="five-ideas-from-iros-2026-v2" class="vid"><p class="eyebrow">Video 4 · 8:02</p><h3>Five Ideas from IROS 2026</h3><p class="blurb">Five robotics papers on how robots see, judge, and notice when the world stops matching their training.</p><video controls preload="none" playsinline poster="media/five-ideas-from-iros-2026-v2.jpg"><source src="media/five-ideas-from-iros-2026-v2.mp4" type="video/mp4"></video><details><summary>Chapters</summary><ol><li><button data-t="0.00"><span class="t">0:00</span>Opening</button></li><li><button data-t="42.01"><span class="t">0:42</span>RoboLight: light adds up</button></li><li><button data-t="125.23"><span class="t">2:05</span>AFA: where to look</button></li><li><button data-t="199.93"><span class="t">3:20</span>PhysQuantAgent: judging mass</button></li><li><button data-t="277.36"><span class="t">4:37</span>PREFAIL: before the drop</button></li><li><button data-t="354.21"><span class="t">5:54</span>TIMID: the wrong moment</button></li><li><button data-t="433.15"><span class="t">7:13</span>Noticing the gap</button></li></ol></details></section>
+  <footer>Narration: ElevenLabs. Music: Kevin MacLeod (incompetech.com), CC BY 4.0. Paper figures are credited on screen.</footer>
+</main>
+<script>
+  const vids = [...document.querySelectorAll("video")];
+  vids.forEach(v => v.addEventListener("play", () => vids.forEach(o => { if (o !== v) o.pause(); })));
+  document.querySelectorAll("button[data-t]").forEach(b => b.addEventListener("click", () => {
+    const v = b.closest(".vid").querySelector("video");
+    v.currentTime = +b.dataset.t; v.play();
+  }));
+</script>
+</body>
+</html>
