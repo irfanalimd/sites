@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multi-turn agentic RL</title>
+<meta name="description" content="How to train an LLM planner over many turns with RL: masking environment tokens, rewards and a curriculum, credit across turns (GRPO, GiGPO, value heads), reward hacking and the Echo Trap, and how to evaluate it.">
+<meta property="og:title" content="Multi-turn agentic RL">
+<meta property="og:description" content="How to train an LLM planner over many turns with RL: masking environment tokens, rewards and a curriculum, credit across turns (GRPO, GiGPO, value heads), reward hacking and the Echo Trap, and how to evaluate it.">
+<meta property="og:image" content="media/multi-turn-agentic-rl.jpg">
+<style>
+  :root { --bg:#f6f5f2; --fg:#16181d; --muted:#6b6f78; --rule:#dcdad4; --accent:#b8860b; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0b0d12; --fg:#ece8e1; --muted:#8a8f98; --rule:#23272f; --accent:#ffd45a; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:16px/1.55 -apple-system, BlinkMacSystemFont, "Avenir Next", "Segoe UI", sans-serif; }
+  main { max-width:1040px; margin:0 auto; padding:40px 16px 64px; }
+  h1 { font:400 clamp(28px,4.5vw,44px)/1.15 "Iowan Old Style", "Palatino", Georgia, serif; margin:0 0 8px; }
+  .series { color:var(--muted); font-size:14px; margin:0 0 10px; }
+  .lede { color:var(--muted); margin:0 0 24px; max-width:68ch; }
+  video { width:100%; aspect-ratio:16/9; background:#000; border-radius:10px; display:block; }
+  h2 { font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:28px 0 8px; font-weight:600; }
+  ol { list-style:none; padding:0; margin:0; display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:2px 24px; }
+  button { all:unset; cursor:pointer; display:flex; gap:12px; padding:6px 0; border-bottom:1px solid var(--rule); width:100%; }
+  button:hover { color:var(--accent); }
+  .t { font-variant-numeric:tabular-nums; color:var(--muted); min-width:3.2em; }
+  footer { margin-top:32px; color:var(--muted); font-size:13px; }
+  a { color:inherit; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Multi-turn agentic RL</h1>
+  <p class="series">Video 4 of 6 in the RL &amp; Robot Learning series · <a href="rl-robot-learning.html">open the guide</a></p>
+  <p class="lede">How to train an LLM planner over many turns with RL: masking environment tokens, rewards and a curriculum, credit across turns (GRPO, GiGPO, value heads), reward hacking and the Echo Trap, and how to evaluate it.</p>
+  <video id="v" controls preload="metadata" playsinline poster="media/multi-turn-agentic-rl.jpg">
+    <source src="media/multi-turn-agentic-rl.mp4" type="video/mp4">
+  </video>
+  <h2>Chapters</h2>
+  <ol>
+      <li><button data-t="0.00"><span class="t">0:00</span>Opening</button></li>
+      <li><button data-t="38.55"><span class="t">0:38</span>From one answer to an episode</button></li>
+      <li><button data-t="94.16"><span class="t">1:34</span>Building the world</button></li>
+      <li><button data-t="158.01"><span class="t">2:38</span>What gets trained: the mask</button></li>
+      <li><button data-t="231.14"><span class="t">3:51</span>Rewards and a curriculum</button></li>
+      <li><button data-t="305.89"><span class="t">5:05</span>Credit across turns</button></li>
+      <li><button data-t="392.66"><span class="t">6:32</span>How it breaks</button></li>
+      <li><button data-t="469.86"><span class="t">7:49</span>The recipe and the machinery</button></li>
+      <li><button data-t="542.27"><span class="t">9:02</span>Measuring it honestly</button></li>
+      <li><button data-t="596.12"><span class="t">9:56</span>What to remember</button></li>
+  </ol>
+  <footer>Yao et al. 2022 (ReAct) · Wang et al. 2025 (RAGEN) · Jin et al. 2025 (Search-R1) · Feng et al. 2025 (GiGPO) · Zhou et al. 2024 (ArCHer) · Figures: ReAct (Yao et al.), RAGEN (Wang et al.), CC BY 4.0 · GiGPO and Search-R1 numbers redrawn · toy results computed for this video · Music: Kevin MacLeod (incompetech.com), “Thinking Music”, “Floating Cities”, “Dreamer”, “Ether Vox”, “Clean Soul”, CC BY 4.0</footer>
+</main>
+<script>
+  const v = document.getElementById("v");
+  document.querySelectorAll("button[data-t]").forEach(b =>
+    b.addEventListener("click", () => { v.currentTime = +b.dataset.t; v.play(); window.scrollTo({top: v.offsetTop - 16, behavior: "smooth"}); }));
+</script>
+</body>
+</html>

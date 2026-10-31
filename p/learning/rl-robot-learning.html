@@ -423,6 +423,18 @@ details.sc .ans>*:last-child{margin-bottom:0}
 .plain-toggle{margin-left:auto}
 .hero-actions{display:flex;gap:10px;flex-wrap:wrap}
 
+/* video series */
+.video-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:0 0 8px}
+.video-card{display:flex;gap:12px;padding:14px 16px;color:inherit;text-decoration:none}
+a.video-card:hover{text-decoration:none;border-color:var(--line-2);background:var(--sunk)}
+.video-card.soon{opacity:.62}
+.video-card .vnum{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--ink);color:var(--page);font:700 13px var(--mono, monospace)}
+.video-card h4{margin:2px 0 4px;font-size:14.5px}
+.video-card p{margin:0;font-size:13px}
+.video-card .vmeta{margin-top:6px;font-size:11.5px}
+.video-chip{text-decoration:none}
+@media (max-width:900px){.video-grid{grid-template-columns:minmax(0,1fr)}}
+
 </style>
 </head>
 <body>
@@ -542,6 +554,25 @@ RL.PLAN = {
     "Start applying after Phase 2 (PI, Dyna, Figure, Skild, Eka, etc.). Lead with the Phase 2 project.",
   ],
 };
+
+</script>
+<script>/* videos.js */
+/* The video series (chalk explainers). A video with `live: true` links to its page next to this guide in
+   sites/p/learning/<slug>.html; the others show as "coming soon". `modules` are the module ids it teaches. */
+RL.VIDEOS = [
+  { n: 1, slug: "policy-gradients-advantages-and-gae", title: "Policy gradients, advantages and GAE", modules: ["pg", "gae"], live: false, phase: 0,
+    blurb: "Why pushing up good actions works, why a critic cuts the noise, and how GAE's λ trades bias for variance." },
+  { n: 2, slug: "ppo-line-by-line", title: "PPO, line by line", modules: ["ppo", "handson"], live: false, phase: 0,
+    blurb: "The ratio, the clip, the value loss and the knobs that break it, mapped onto CleanRL's ppo.py." },
+  { n: 3, slug: "from-rlhf-to-grpo", title: "From RLHF to GRPO", modules: ["rlhf", "grpo", "llm"], live: false, phase: 0,
+    blurb: "Reward models and the KL leash, then group-relative advantages with no critic and verifiable rewards." },
+  { n: 4, slug: "multi-turn-agentic-rl", title: "Multi-turn agentic RL", modules: ["agentic", "sota-agents"], live: true, phase: 1,
+    blurb: "An LLM acting over many turns: masking, credit across turns, step vs outcome rewards, reward hacking." },
+  { n: 5, slug: "diffusion-and-flow-policies-to-vlas", title: "Diffusion and flow policies, up to VLAs", modules: ["il", "vla", "sota-robots"], live: false, phase: 2,
+    blurb: "How Diffusion Policy and flow matching generate action chunks, and how π0, π0.5 and SmolVLA are built." },
+  { n: 6, slug: "rl-post-training-for-robot-policies", title: "RL post-training for robot policies: DSRL, Recap, filtered BC", modules: ["robotrl", "offrl"], live: false, phase: 2,
+    blurb: "Steering a frozen policy through its noise, advantage-conditioned fine-tuning, and the honest baseline." },
+];
 
 </script>
 <script>/* 00-math.js */
@@ -19537,6 +19568,7 @@ function viewDashboard() {
   </div>
   <div class="section-head"><div><p class="overline">Your plan</p><h2>Four phases, and what each one needs</h2></div><p><a href="#/plan">Open the plan →</a></p></div>
   <div class="timeline">${phases}</div>
+  ${videoStrip()}
   <div class="section-head"><div><p class="overline">Curriculum</p><h2>${PARTS.length} parts, from first principles to research craft</h2></div><p>A module is done when every lesson is marked and the quiz is ≥ 80%.</p></div>
   <div class="dash-grid">
     <div class="parts">${parts}</div>
@@ -19553,6 +19585,19 @@ function viewDashboard() {
     </div>
   </div>`);
   typeset(root);
+}
+
+function videoStrip() {
+  const vs = RL.VIDEOS || [];
+  if (!vs.length) return "";
+  const live = vs.filter(v => v.live).length;
+  const cards = vs.map(v => {
+    const ms = v.modules.map(id => byId[id]).filter(Boolean).map(m => pad2(m.num)).join(" · ");
+    const inner = `<span class="vnum">${v.n}</span><div><h4>${esc(v.title)}</h4><p>${esc(v.blurb)}</p><p class="muted vmeta">Phase ${v.phase} · modules ${ms} · ${v.live ? "▶ watch (~10 min)" : "coming soon"}</p></div>`;
+    return v.live ? `<a class="card video-card" href="${v.slug}.html">${inner}</a>` : `<div class="card video-card soon">${inner}</div>`;
+  }).join("");
+  return `<div class="section-head"><div><p class="overline">Video series</p><h2>The core algorithms, explained in ~10-minute videos</h2></div><p>${live} of ${vs.length} out. Watch them in order.</p></div>
+  <div class="video-grid">${cards}</div>`;
 }
 
 function viewPlan() {
@@ -19638,7 +19683,7 @@ function viewModule(id, secId) {
     <div class="kicker"><span class="badge">${pad2(m.num)}</span><span>Part ${part.id} · ${esc(part.title)}</span>${phases.map(p => `<span class="chip">${esc(p.name.split("·")[0].trim())}</span>`).join("")}</div>
     <h1>${m.title}</h1>
     <p class="sub">${m.subtitle || ""}</p>
-    <div class="mod-meta"><span class="chip">~${m.minutes || 30} min</span><span class="chip">${m.sections.length} lessons</span><span class="chip">${(m.quiz || []).length} quiz questions</span><span class="chip">${(m.flashcards || []).length} flashcards</span><span class="chip" id="mod-pct"></span></div>
+    <div class="mod-meta"><span class="chip">~${m.minutes || 30} min</span><span class="chip">${m.sections.length} lessons</span><span class="chip">${(m.quiz || []).length} quiz questions</span><span class="chip">${(m.flashcards || []).length} flashcards</span><span class="chip" id="mod-pct"></span>${(RL.VIDEOS || []).filter(v => v.live && v.modules.includes(m.id)).map(v => `<a class="chip video-chip" href="${v.slug}.html">▶ Video ${v.n}: ${esc(v.title)}</a>`).join("")}</div>
     ${m.objectives ? `<div class="objectives"><h4>By the end you can</h4><ul>${m.objectives.map(o => `<li>${o}</li>`).join("")}</ul></div>` : ""}
   </header>
   <div class="mod-layout p${part.id}">
