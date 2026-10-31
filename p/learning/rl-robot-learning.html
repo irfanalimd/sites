@@ -19594,9 +19594,9 @@ function videoStrip() {
   const cards = vs.map(v => {
     const ms = v.modules.map(id => byId[id]).filter(Boolean).map(m => pad2(m.num)).join(" · ");
     const inner = `<span class="vnum">${v.n}</span><div><h4>${esc(v.title)}</h4><p>${esc(v.blurb)}</p><p class="muted vmeta">Phase ${v.phase} · modules ${ms} · ${v.live ? "▶ watch (~10 min)" : "coming soon"}</p></div>`;
-    return v.live ? `<a class="card video-card" href="${v.slug}.html">${inner}</a>` : `<div class="card video-card soon">${inner}</div>`;
+    return v.live ? `<a class="card video-card" href="rl-videos.html#${v.slug}">${inner}</a>` : `<div class="card video-card soon">${inner}</div>`;
   }).join("");
-  return `<div class="section-head"><div><p class="overline">Video series</p><h2>The core algorithms, explained in ~10-minute videos</h2></div><p>${live} of ${vs.length} out. Watch them in order.</p></div>
+  return `<div class="section-head"><div><p class="overline">Video series</p><h2>The core algorithms, explained in ~10-minute videos</h2></div><p>${live} of ${vs.length} out · <a href="rl-videos.html">all videos on one page →</a></p></div>
   <div class="video-grid">${cards}</div>`;
 }
 
@@ -19683,7 +19683,7 @@ function viewModule(id, secId) {
     <div class="kicker"><span class="badge">${pad2(m.num)}</span><span>Part ${part.id} · ${esc(part.title)}</span>${phases.map(p => `<span class="chip">${esc(p.name.split("·")[0].trim())}</span>`).join("")}</div>
     <h1>${m.title}</h1>
     <p class="sub">${m.subtitle || ""}</p>
-    <div class="mod-meta"><span class="chip">~${m.minutes || 30} min</span><span class="chip">${m.sections.length} lessons</span><span class="chip">${(m.quiz || []).length} quiz questions</span><span class="chip">${(m.flashcards || []).length} flashcards</span><span class="chip" id="mod-pct"></span>${(RL.VIDEOS || []).filter(v => v.live && v.modules.includes(m.id)).map(v => `<a class="chip video-chip" href="${v.slug}.html">▶ Video ${v.n}: ${esc(v.title)}</a>`).join("")}</div>
+    <div class="mod-meta"><span class="chip">~${m.minutes || 30} min</span><span class="chip">${m.sections.length} lessons</span><span class="chip">${(m.quiz || []).length} quiz questions</span><span class="chip">${(m.flashcards || []).length} flashcards</span><span class="chip" id="mod-pct"></span>${(RL.VIDEOS || []).filter(v => v.live && v.modules.includes(m.id)).map(v => `<a class="chip video-chip" href="rl-videos.html#${v.slug}">▶ Video ${v.n}: ${esc(v.title)}</a>`).join("")}</div>
     ${m.objectives ? `<div class="objectives"><h4>By the end you can</h4><ul>${m.objectives.map(o => `<li>${o}</li>`).join("")}</ul></div>` : ""}
   </header>
   <div class="mod-layout p${part.id}">

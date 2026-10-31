@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RL Videos</title>
+<meta name="description" content="Six ~11-minute videos on the core algorithms of RL and robot learning: policy gradients and GAE, PPO, RLHF and GRPO, multi-turn agentic RL, diffusion and flow policies up to VLAs, and RL post-training of robot policies.">
+<meta property="og:title" content="RL Videos">
+<meta property="og:description" content="The core algorithms of RL and robot learning, in six ~11-minute videos.">
+<meta property="og:image" content="media/policy-gradients-advantages-and-gae.jpg">
+<style>
+  :root { --bg:#f6f5f2; --fg:#16181d; --muted:#6b6f78; --rule:#dcdad4; --card:#fffdf9; --accent:#9a6b00; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0b0d12; --fg:#ece8e1; --muted:#8a8f98; --rule:#23272f; --card:#11141a; --accent:#ffd45a; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:16px/1.55 -apple-system, BlinkMacSystemFont, "Avenir Next", "Segoe UI", sans-serif; }
+  main { max-width:960px; margin:0 auto; padding:40px 16px 64px; }
+  a { color:inherit; }
+  h1 { font:400 clamp(30px,5vw,46px)/1.12 "Iowan Old Style", Palatino, Georgia, serif; margin:0 0 10px; }
+  .lede { color:var(--muted); margin:0 0 22px; max-width:62ch; }
+  nav { display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:6px 18px; margin:0 0 8px; }
+  nav a { display:flex; gap:10px; align-items:baseline; padding:7px 0; border-bottom:1px solid var(--rule); text-decoration:none; font-size:15px; }
+  nav a:hover { color:var(--accent); }
+  nav span { font-variant-numeric:tabular-nums; color:var(--muted); min-width:1.2em; }
+  h2 { font-size:12.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:600;
+       margin:48px 0 0; padding-top:14px; border-top:1px solid var(--rule); }
+  .vid { margin:22px 0 40px; scroll-margin-top:16px; }
+  .eyebrow { margin:0; color:var(--muted); font-size:13px; font-variant-numeric:tabular-nums; }
+  h3 { font:400 clamp(22px,3.4vw,30px)/1.2 "Iowan Old Style", Palatino, Georgia, serif; margin:2px 0 4px; }
+  .blurb { margin:0 0 14px; color:var(--muted); max-width:70ch; }
+  video { width:100%; aspect-ratio:16/9; background:#000; border-radius:10px; display:block; }
+  details { margin-top:10px; font-size:14.5px; }
+  summary { cursor:pointer; color:var(--muted); width:max-content; }
+  summary:hover { color:var(--accent); }
+  ol { list-style:none; padding:0; margin:8px 0 0; display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:0 22px; }
+  button { all:unset; cursor:pointer; display:flex; gap:12px; padding:5px 0; border-bottom:1px solid var(--rule); width:100%; }
+  button:hover { color:var(--accent); }
+  .t { font-variant-numeric:tabular-nums; color:var(--muted); min-width:3em; }
+  .soon { opacity:.6; }
+  footer { margin-top:48px; color:var(--muted); font-size:13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>RL Videos</h1>
+  <p class="lede">The core algorithms of RL and robot learning, one ~11-minute video each, in the order you'll use them.
+  For lessons, quizzes and the full plan, see the <a href="rl-robot-learning.html">RL &amp; Robot Learning guide</a>.</p>
+  <nav><a href="#policy-gradients-advantages-and-gae"><span>1</span>Policy gradients, advantages and GAE</a><a href="#ppo-line-by-line"><span>2</span>PPO, line by line</a><a href="#from-rlhf-to-grpo"><span>3</span>From RLHF to GRPO</a><a href="#multi-turn-agentic-rl"><span>4</span>Multi-turn agentic RL</a><a href="#diffusion-and-flow-policies-to-vlas"><span>5</span>Diffusion and flow policies, up to VLAs</a><a href="#rl-post-training-for-robot-policies"><span>6</span>RL post-training for robot policies: DSRL, Recap, filtered BC</a></nav>
+  <h2>Phase 0 · RL fundamentals</h2><section id="policy-gradients-advantages-and-gae" class="vid"><p class="eyebrow">Video 1 · 10:55</p><h3>Policy gradients, advantages and GAE</h3><p class="blurb">Why pushing up good actions works, why a critic cuts the noise, and how GAE&#x27;s λ trades bias for variance.</p><video controls preload="none" playsinline poster="media/policy-gradients-advantages-and-gae.jpg"><source src="media/policy-gradients-advantages-and-gae.mp4" type="video/mp4"></video><details><summary>Chapters</summary><ol><li><button data-t="0.00"><span class="t">0:00</span>Opening</button></li><li><button data-t="31.00"><span class="t">0:31</span>The loop</button></li><li><button data-t="98.11"><span class="t">1:38</span>REINFORCE: sample, score, nudge</button></li><li><button data-t="162.36"><span class="t">2:42</span>Why it&#x27;s noisy</button></li><li><button data-t="214.09"><span class="t">3:34</span>Baselines and the advantage</button></li><li><button data-t="288.28"><span class="t">4:48</span>The critic and the TD error</button></li><li><button data-t="353.61"><span class="t">5:54</span>GAE: one knob, λ</button></li><li><button data-t="413.40"><span class="t">6:53</span>The backward sweep</button></li><li><button data-t="474.78"><span class="t">7:55</span>The practical details</button></li><li><button data-t="548.15"><span class="t">9:08</span>In your plan</button></li></ol></details></section><section id="ppo-line-by-line" class="vid"><p class="eyebrow">Video 2 · 10:53</p><h3>PPO, line by line</h3><p class="blurb">The ratio, the clip, the value loss and the knobs that break it, mapped onto CleanRL&#x27;s ppo.py.</p><video controls preload="none" playsinline poster="media/ppo-line-by-line.jpg"><source src="media/ppo-line-by-line.mp4" type="video/mp4"></video><details><summary>Chapters</summary><ol><li><button data-t="0.00"><span class="t">0:00</span>Opening</button></li><li><button data-t="42.79"><span class="t">0:43</span>One step too far</button></li><li><button data-t="104.93"><span class="t">1:45</span>The probability ratio</button></li><li><button data-t="162.34"><span class="t">2:42</span>The clip</button></li><li><button data-t="278.05"><span class="t">4:38</span>The full loss</button></li><li><button data-t="334.91"><span class="t">5:35</span>The training loop</button></li><li><button data-t="402.57"><span class="t">6:43</span>Continuous actions</button></li><li><button data-t="453.71"><span class="t">7:34</span>Breaking it on purpose</button></li><li><button data-t="512.86"><span class="t">8:33</span>Reading the dashboard</button></li><li><button data-t="555.08"><span class="t">9:15</span>In your plan</button></li><li><button data-t="605.60"><span class="t">10:06</span>What to remember</button></li></ol></details></section><section id="from-rlhf-to-grpo" class="vid"><p class="eyebrow">Video 3 · 11:25</p><h3>From RLHF to GRPO</h3><p class="blurb">Reward models and the KL leash, then group-relative advantages with no critic and verifiable rewards.</p><video controls preload="none" playsinline poster="media/from-rlhf-to-grpo.jpg"><source src="media/from-rlhf-to-grpo.mp4" type="video/mp4"></video><details><summary>Chapters</summary><ol><li><button data-t="0.00"><span class="t">0:00</span>Opening</button></li><li><button data-t="36.05"><span class="t">0:36</span>A language model is a policy</button></li><li><button data-t="90.34"><span class="t">1:30</span>RLHF: a reward model and a leash</button></li><li><button data-t="163.49"><span class="t">2:43</span>GRPO: the group is the baseline</button></li><li><button data-t="234.86"><span class="t">3:55</span>The GRPO loss: clip and leash</button></li><li><button data-t="302.49"><span class="t">5:02</span>Verifiable rewards</button></li><li><button data-t="376.70"><span class="t">6:17</span>Pitfalls and their fixes</button></li><li><button data-t="449.06"><span class="t">7:29</span>The loop you will write</button></li><li><button data-t="520.05"><span class="t">8:40</span>Sharper, or smarter?</button></li><li><button data-t="588.80"><span class="t">9:49</span>In your plan</button></li></ol></details></section><h2>Phase 1 · A multi-turn LLM planner</h2><section id="multi-turn-agentic-rl" class="vid"><p class="eyebrow">Video 4 · 10:51</p><h3>Multi-turn agentic RL</h3><p class="blurb">An LLM acting over many turns: masking, credit across turns, step vs outcome rewards, reward hacking.</p><video controls preload="none" playsinline poster="media/multi-turn-agentic-rl.jpg"><source src="media/multi-turn-agentic-rl.mp4" type="video/mp4"></video><details><summary>Chapters</summary><ol><li><button data-t="0.00"><span class="t">0:00</span>Opening</button></li><li><button data-t="38.55"><span class="t">0:39</span>From one answer to an episode</button></li><li><button data-t="94.16"><span class="t">1:34</span>Building the world</button></li><li><button data-t="158.01"><span class="t">2:38</span>What gets trained: the mask</button></li><li><button data-t="231.14"><span class="t">3:51</span>Rewards and a curriculum</button></li><li><button data-t="305.89"><span class="t">5:06</span>Credit across turns</button></li><li><button data-t="392.66"><span class="t">6:33</span>How it breaks</button></li><li><button data-t="469.86"><span class="t">7:50</span>The recipe and the machinery</button></li><li><button data-t="542.27"><span class="t">9:02</span>Measuring it honestly</button></li><li><button data-t="596.12"><span class="t">9:56</span>What to remember</button></li></ol></details></section><h2>Phase 2 · Robot policies</h2><section id="diffusion-and-flow-policies-to-vlas" class="vid"><p class="eyebrow">Video 5 · 10:58</p><h3>Diffusion and flow policies, up to VLAs</h3><p class="blurb">How Diffusion Policy and flow matching generate action chunks, and how π0, π0.5 and SmolVLA are built.</p><video controls preload="none" playsinline poster="media/diffusion-and-flow-policies-to-vlas.jpg"><source src="media/diffusion-and-flow-policies-to-vlas.mp4" type="video/mp4"></video><details><summary>Chapters</summary><ol><li><button data-t="0.00"><span class="t">0:00</span>Opening</button></li><li><button data-t="44.37"><span class="t">0:44</span>Copying demonstrations</button></li><li><button data-t="121.56"><span class="t">2:02</span>Action chunks</button></li><li><button data-t="184.11"><span class="t">3:04</span>Diffusion Policy</button></li><li><button data-t="260.73"><span class="t">4:21</span>Flow matching</button></li><li><button data-t="328.11"><span class="t">5:28</span>Vision-language-action models</button></li><li><button data-t="407.71"><span class="t">6:48</span>π0.5: new homes</button></li><li><button data-t="473.00"><span class="t">7:53</span>SmolVLA and your fine-tune</button></li><li><button data-t="547.35"><span class="t">9:07</span>Why this matters for RL</button></li><li><button data-t="600.11"><span class="t">10:00</span>What to remember</button></li></ol></details></section><section id="rl-post-training-for-robot-policies" class="vid soon"><p class="eyebrow">Video 6 · coming soon</p><h3>RL post-training for robot policies: DSRL, Recap, filtered BC</h3><p class="blurb">Steering a frozen policy through its noise, advantage-conditioned fine-tuning, and the honest baseline.</p></section>
+  <footer>Narration: ElevenLabs. Music: Kevin MacLeod (incompetech.com), CC BY 4.0. Paper figures are credited on screen.</footer>
+</main>
+<script>
+  const vids = [...document.querySelectorAll("video")];
+  vids.forEach(v => v.addEventListener("play", () => vids.forEach(o => { if (o !== v) o.pause(); })));
+  document.querySelectorAll("button[data-t]").forEach(b => b.addEventListener("click", () => {
+    const v = b.closest(".vid").querySelector("video");
+    v.currentTime = +b.dataset.t; v.play();
+  }));
+</script>
+</body>
+</html>
